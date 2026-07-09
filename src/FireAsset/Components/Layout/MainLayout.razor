@@ -1,0 +1,58 @@
+@inherits LayoutComponentBase
+
+<RadzenComponents />
+
+<RadzenLayout>
+    <RadzenHeader>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween" class="rz-px-4" Style="width: 100%;">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.75rem">
+                <RadzenSidebarToggle Click="() => _sidebarExpanded = !_sidebarExpanded" />
+                <RadzenText TextStyle="TextStyle.H6" class="rz-my-0">Asset Manager</RadzenText>
+            </RadzenStack>
+            <AuthorizeView>
+                <Authorized>
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="1rem">
+                        <RadzenText TextStyle="TextStyle.Body2" class="rz-my-0">@context.User.Identity?.Name</RadzenText>
+                        <form action="logout" method="post" style="margin:0;">
+                            <RadzenButton ButtonType="ButtonType.Submit" Text="Abmelden" Icon="logout"
+                                          ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" />
+                        </form>
+                    </RadzenStack>
+                </Authorized>
+            </AuthorizeView>
+        </RadzenStack>
+    </RadzenHeader>
+
+    <RadzenSidebar @bind-Expanded="_sidebarExpanded">
+        <RadzenPanelMenu>
+            <RadzenPanelMenuItem Text="Dashboard" Icon="dashboard" Path="" />
+            <RadzenPanelMenuItem Text="Stammdaten" Icon="settings">
+                <RadzenPanelMenuItem Text="Benutzer" Icon="group" Path="stammdaten/benutzer" />
+                <RadzenPanelMenuItem Text="Standorte" Icon="place" Path="stammdaten/standorte" />
+                <RadzenPanelMenuItem Text="Kategorien & Intervalle" Icon="category" Path="stammdaten/kategorien" />
+                <RadzenPanelMenuItem Text="Formulare" Icon="description" Path="stammdaten/formulare" />
+            </RadzenPanelMenuItem>
+            <RadzenPanelMenuItem Text="Artikelstamm" Icon="inventory_2" Path="artikel" />
+            <RadzenPanelMenuItem Text="Aufgaben" Icon="task_alt" Path="aufgaben" />
+            <RadzenPanelMenuItem Text="Protokolle" Icon="fact_check" Path="protokolle" />
+            <RadzenPanelMenuItem Text="Export" Icon="file_download" Path="export" />
+            <RadzenPanelMenuItem Text="Handbuch" Icon="menu_book" Path="handbuch" />
+        </RadzenPanelMenu>
+    </RadzenSidebar>
+
+    <RadzenBody>
+        <div class="rz-p-4">
+            @Body
+        </div>
+    </RadzenBody>
+</RadzenLayout>
+
+<div id="blazor-error-ui" data-nosnippet>
+    Ein unerwarteter Fehler ist aufgetreten.
+    <a href="." class="reload">Neu laden</a>
+    <span class="dismiss">🗙</span>
+</div>
+
+@code {
+    private bool _sidebarExpanded = true;
+}

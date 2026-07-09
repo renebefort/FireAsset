@@ -1,0 +1,119 @@
+@inject LocationService LocationService
+@inject NotificationService Notifications
+@inject DialogService Dialogs
+
+<RadzenStack Gap="0.85rem">
+    <div>
+        <label class="fa-label">Name</label>
+        <input class="fa-input" @bind="_location.Name" />
+    </div>
+
+    <div>
+        <label class="fa-label">Übergeordneter Standort</label>
+        <select class="fa-input" @bind="_location.ParentLocationId">
+            <option value="">(kein übergeordneter Standort)</option>
+            @foreach (var o in _parentOptions)
+            {
+                <option value="@o.Id">@o.Path</option>
+            }
+        </select>
+    </div>
+
+    <RadzenRow Gap="0.75rem">
+        <RadzenColumn Size="12" SizeMd="6">
+            <label class="fa-label">Icon</label>
+            <select class="fa-input" @bind="_location.Icon">
+                @foreach (var i in Icons)
+                {
+                    <option value="@i.Value">@i.Label</option>
+                }
+            </select>
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMd="6">
+            <label class="fa-label">Barcode</label>
+            <input class="fa-input" @bind="_location.Barcode" />
+        </RadzenColumn>
+    </RadzenRow>
+
+    <div>
+        <label class="fa-label">Beschreibung</label>
+        <textarea class="fa-input fa-textarea" rows="2" @bind="_location.Description"></textarea>
+    </div>
+
+    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem">
+        <RadzenButton Text="Abbrechen" ButtonStyle="ButtonStyle.Light" Click="() => Dialogs.Close(false)" />
+        <RadzenButton Text="Speichern" ButtonStyle="ButtonStyle.Primary" Icon="save" Click="Save" />
+    </RadzenStack>
+</RadzenStack>
+
+@code {
+    [Parameter] public int? LocationId { get; set; }
+
+    public record IconOption(string Value, string Label);
+    private record ParentOption(int Id, string Path);
+
+    private static readonly IconOption[] Icons =
+    {
+        new("folder", "Verzeichnis"),
+        new("local_shipping", "LKW / Fahrzeug"),
+        new("shelves", "Regal"),
+        new("meeting_room", "Raum"),
+        new("inventory_2", "Lager"),
+        new("person", "Einsatzkraft"),
+        new("place", "Sonstiges"),
+    };
+
+    private Location _location = new() { Icon = "place" };
+    private List<ParentOption> _parentOptions = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var all = await LocationService.GetAllAsync();
+        var byId = all.ToDictionary(l => l.Id);
+
+        if (LocationId is int id)
+        {
+            var existing = all.FirstOrDefault(l => l.Id == id);
+            if (existing is not null) _location = existing;
+        }
+
+        _parentOptions = all
+            .Where(l => l.Id != _location.Id)
+            .Select(l => new ParentOption(l.Id, LocationService.BuildPath(l, byId)))
+            .OrderBy(o => o.Path)
+            .ToList();
+    }
+
+    private async Task Save()
+    {
+        if (string.IsNullOrWhiteSpace(_location.Name))
+        {
+            Notify("Der Name ist erforderlich.");
+            return;
+        }
+        if (_location.Id != 0 && await LocationService.WouldCreateCycleAsync(_location.Id, _location.ParentLocationId))
+        {
+            Notify("Ungültige Auswahl: Ein Standort kann nicht sich selbst oder einem Nachfahren untergeordnet werden.");
+            return;
+        }
+        if (!string.IsNullOrWhiteSpace(_location.Barcode) &&
+            await LocationService.BarcodeExistsAsync(_location.Barcode, _location.Id == 0 ? null : _location.Id))
+        {
+            Notify("Dieser Barcode wird bereits verwendet.");
+            return;
+        }
+
+        if (_location.Id == 0)
+        {
+            await LocationService.CreateAsync(_location);
+        }
+        else
+        {
+            await LocationService.UpdateAsync(_location);
+        }
+        Dialogs.Close(true);
+    }
+
+    private void Notify(string message) =>
+        Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Warning, Summary = "Hinweis", Detail = message, Duration = 4000 });
+}

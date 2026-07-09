@@ -1,0 +1,98 @@
+@page "/stammdaten/standorte"
+@attribute [Authorize]
+@inject LocationService LocationService
+@inject NotificationService Notifications
+@inject DialogService Dialogs
+
+<PageTitle>Standorte · Asset Manager</PageTitle>
+
+<RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center" class="rz-mb-3">
+    <RadzenText TextStyle="TextStyle.H4" class="rz-my-0">Standorte</RadzenText>
+    <RadzenButton Icon="add" Text="Neuer Standort" ButtonStyle="ButtonStyle.Primary" Click="() => OpenEditor(null)" />
+</RadzenStack>
+
+<RadzenDataGrid @ref="_grid" Data="@_locations" TItem="Location" AllowSorting="true"
+                AllowFiltering="true" FilterMode="FilterMode.Advanced" GridLines="DataGridGridLines.Both" AllowColumnResize="true"
+                AllowColumnPicking="true" AllowPaging="true" PageSize="20"
+                PageSizeOptions="@(new int[] { 10, 20, 50, 100 })" ShowPagingSummary="true"
+                RowDoubleClick="@(args => OpenEditor(args.Data.Id))">
+    <Columns>
+        <RadzenDataGridColumn TItem="Location" Property="Name" Title="Name" />
+        <RadzenDataGridColumn TItem="Location" Title="Pfad" Sortable="false">
+            <Template Context="loc">@PathOf(loc)</Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="Location" Property="Barcode" Title="Barcode" Width="160px" />
+        <RadzenDataGridColumn TItem="Location" Property="Icon" Title="Icon" Width="160px">
+            <Template Context="loc">
+                <RadzenIcon Icon="@(string.IsNullOrEmpty(loc.Icon) ? "place" : loc.Icon)" />
+                <span class="rz-ml-2">@IconLabel(loc.Icon)</span>
+            </Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="Location" Property="Description" Title="Beschreibung" />
+        <RadzenDataGridColumn TItem="Location" Context="loc" Title="Aktionen" Sortable="false" Filterable="false" Pickable="false" Width="140px" TextAlign="TextAlign.Center">
+            <Template Context="loc">
+                <RadzenButton Icon="edit" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="() => OpenEditor(loc.Id)" title="Bearbeiten" />
+                <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small" Click="() => DeleteRow(loc)" title="Löschen" />
+            </Template>
+        </RadzenDataGridColumn>
+    </Columns>
+</RadzenDataGrid>
+
+@code {
+    private record IconOption(string Value, string Label);
+
+    private static readonly IconOption[] Icons =
+    {
+        new("folder", "Verzeichnis"),
+        new("local_shipping", "LKW / Fahrzeug"),
+        new("shelves", "Regal"),
+        new("meeting_room", "Raum"),
+        new("inventory_2", "Lager"),
+        new("person", "Einsatzkraft"),
+        new("place", "Sonstiges"),
+    };
+
+    private RadzenDataGrid<Location> _grid = default!;
+    private List<Location> _locations = new();
+    private Dictionary<int, Location> _byId = new();
+
+    protected override async Task OnInitializedAsync() => await Reload();
+
+    private async Task Reload()
+    {
+        _locations = await LocationService.GetAllAsync();
+        _byId = _locations.ToDictionary(l => l.Id);
+    }
+
+    private string PathOf(Location loc) => LocationService.BuildPath(loc, _byId);
+
+    private string IconLabel(string? icon) => Icons.FirstOrDefault(i => i.Value == icon)?.Label ?? "";
+
+    private async Task OpenEditor(int? locationId)
+    {
+        var result = await Dialogs.OpenAsync<LocationEditDialog>(
+            locationId is null ? "Neuer Standort" : "Standort bearbeiten",
+            new Dictionary<string, object?> { ["LocationId"] = locationId },
+            new DialogOptions { Width = "560px", Resizable = true, Draggable = true });
+
+        if (result is true) await Reload();
+    }
+
+    private async Task DeleteRow(Location loc)
+    {
+        var confirmed = await Dialogs.Confirm($"Standort \"{loc.Name}\" wirklich löschen?", "Löschen bestätigen",
+            new ConfirmOptions { OkButtonText = "Löschen", CancelButtonText = "Abbrechen" });
+        if (confirmed != true) return;
+
+        var error = await LocationService.DeleteAsync(loc.Id);
+        if (error is not null)
+        {
+            Notify(error);
+            return;
+        }
+        await Reload();
+    }
+
+    private void Notify(string message) =>
+        Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Warning, Summary = "Hinweis", Detail = message, Duration = 4000 });
+}

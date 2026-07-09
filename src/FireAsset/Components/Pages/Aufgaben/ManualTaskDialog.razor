@@ -1,0 +1,60 @@
+@inject TaskService TaskService
+@inject NotificationService Notifications
+@inject DialogService Dialogs
+
+<RadzenStack Gap="0.85rem">
+    <div>
+        <label class="fa-label">Artikel</label>
+        <select class="fa-input" @bind="_articleId">
+            <option value="">Artikel wählen</option>
+            @foreach (var a in _articles)
+            {
+                <option value="@a.Id">@a.Identification</option>
+            }
+        </select>
+    </div>
+    <div>
+        <label class="fa-label">Formular</label>
+        <select class="fa-input" @bind="_formId">
+            <option value="">Formular wählen</option>
+            @foreach (var f in _forms)
+            {
+                <option value="@f.Id">@f.Name</option>
+            }
+        </select>
+    </div>
+    <div>
+        <label class="fa-label">Fälligkeitsdatum</label>
+        <input type="date" class="fa-input" @bind="_dueDate" style="max-width: 220px" />
+    </div>
+
+    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem">
+        <RadzenButton Text="Abbrechen" ButtonStyle="ButtonStyle.Light" Click="() => Dialogs.Close(false)" />
+        <RadzenButton Text="Anlegen" ButtonStyle="ButtonStyle.Primary" Icon="add" Click="Create" />
+    </RadzenStack>
+</RadzenStack>
+
+@code {
+    private List<Article> _articles = new();
+    private List<Form> _forms = new();
+    private int? _articleId;
+    private int? _formId;
+    private DateTime _dueDate = DateTime.Today;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _articles = await TaskService.GetActiveArticlesAsync();
+        _forms = await TaskService.GetActiveFormsAsync();
+    }
+
+    private async Task Create()
+    {
+        if (_articleId is null || _formId is null)
+        {
+            Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Warning, Summary = "Hinweis", Detail = "Bitte Artikel und Formular wählen.", Duration = 4000 });
+            return;
+        }
+        await TaskService.CreateManualTaskAsync(_articleId.Value, _formId.Value, _dueDate);
+        Dialogs.Close(true);
+    }
+}

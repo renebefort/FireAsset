@@ -1,0 +1,84 @@
+@page "/login"
+@layout EmptyLayout
+@using System.ComponentModel.DataAnnotations
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authentication.Cookies
+@inject UserService UserService
+@inject NavigationManager Navigation
+
+<PageTitle>Anmelden · Asset Manager</PageTitle>
+
+<div class="login-page">
+    <div class="login-card">
+        <h1 class="login-title">Asset Manager</h1>
+        <p class="login-subtitle">Bitte melden Sie sich an.</p>
+
+        <EditForm Model="Input" method="post" OnValidSubmit="LoginUser" FormName="login">
+            <DataAnnotationsValidator />
+
+            @if (!string.IsNullOrEmpty(_errorMessage))
+            {
+                <div class="login-error">@_errorMessage</div>
+            }
+
+            <label class="login-label" for="email">E-Mail</label>
+            <InputText id="email" class="login-input" @bind-Value="Input.Email" autocomplete="username" />
+            <ValidationMessage For="() => Input.Email" />
+
+            <label class="login-label" for="password">Passwort</label>
+            <InputText id="password" type="password" class="login-input" @bind-Value="Input.Password" autocomplete="current-password" />
+            <ValidationMessage For="() => Input.Password" />
+
+            <button type="submit" class="login-button">Anmelden</button>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm]
+    private LoginModel Input { get; set; } = new();
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    private string? _errorMessage;
+
+    private async Task LoginUser()
+    {
+        var user = await UserService.ValidateCredentialsAsync(Input.Email, Input.Password);
+        if (user is null)
+        {
+            _errorMessage = "E-Mail oder Passwort ist ungültig.";
+            return;
+        }
+
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new(ClaimTypes.Name, user.FullName),
+            new(ClaimTypes.Email, user.Email),
+        };
+
+        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+        var principal = new ClaimsPrincipal(identity);
+
+        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
+
+        var target = string.IsNullOrWhiteSpace(ReturnUrl) ? "/" : $"/{ReturnUrl.TrimStart('/')}";
+        Navigation.NavigateTo(target);
+    }
+
+    private sealed class LoginModel
+    {
+        [Required(ErrorMessage = "Bitte E-Mail eingeben.")]
+        [EmailAddress(ErrorMessage = "Ungültige E-Mail-Adresse.")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Bitte Passwort eingeben.")]
+        public string Password { get; set; } = string.Empty;
+    }
+}

@@ -1,0 +1,105 @@
+@page "/"
+@attribute [Authorize]
+@inject DashboardService Dashboard
+@inject NavigationManager Navigation
+
+<PageTitle>Dashboard · Asset Manager</PageTitle>
+
+<RadzenText TextStyle="TextStyle.H4" class="rz-mb-3">Dashboard</RadzenText>
+
+@if (_stats is null)
+{
+    <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate" />
+}
+else
+{
+    <RadzenRow Gap="1rem" class="rz-mb-4">
+        <RadzenColumn Size="12" SizeMd="6" SizeLg="3">
+            <RadzenCard>
+                <RadzenText TextStyle="TextStyle.Overline" class="rz-my-0">Artikel</RadzenText>
+                <RadzenText TextStyle="TextStyle.H4" class="rz-my-0">@_stats.ArticlesActive</RadzenText>
+                <RadzenText TextStyle="TextStyle.Caption">von @_stats.ArticlesTotal gesamt aktiv</RadzenText>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMd="6" SizeLg="3">
+            <RadzenCard>
+                <RadzenText TextStyle="TextStyle.Overline" class="rz-my-0">Offene Aufgaben</RadzenText>
+                <RadzenText TextStyle="TextStyle.H4" class="rz-my-0">@_stats.TasksOpen</RadzenText>
+                <RadzenText TextStyle="TextStyle.Caption">@_stats.TasksDueThisMonth diesen Monat fällig</RadzenText>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMd="6" SizeLg="3">
+            <RadzenCard Style="@(_stats.TasksOverdue > 0 ? "border-left: 4px solid var(--rz-danger);" : "")">
+                <RadzenText TextStyle="TextStyle.Overline" class="rz-my-0">Überfällig</RadzenText>
+                <RadzenText TextStyle="TextStyle.H4" class="rz-my-0">@_stats.TasksOverdue</RadzenText>
+                <RadzenText TextStyle="TextStyle.Caption">Aufgaben nach Fälligkeit</RadzenText>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMd="6" SizeLg="3">
+            <RadzenCard>
+                <RadzenText TextStyle="TextStyle.Overline" class="rz-my-0">Protokolle</RadzenText>
+                <RadzenText TextStyle="TextStyle.H4" class="rz-my-0">@_stats.ProtocolsTotal</RadzenText>
+                <RadzenText TextStyle="TextStyle.Caption">erfasste Prüfungen</RadzenText>
+            </RadzenCard>
+        </RadzenColumn>
+    </RadzenRow>
+
+    <RadzenRow Gap="1rem">
+        <RadzenColumn Size="12" SizeLg="5">
+            <RadzenCard>
+                <RadzenText TextStyle="TextStyle.H6">Prüfstatus der Artikel</RadzenText>
+                <RadzenStack Gap="0.5rem" class="rz-mt-2">
+                    @StatusRow("Bestanden", _stats.StatusBestanden, BadgeStyle.Success)
+                    @StatusRow("Mangelhaft", _stats.StatusMangelhaft, BadgeStyle.Warning)
+                    @StatusRow("Nicht bestanden", _stats.StatusNichtBestanden, BadgeStyle.Danger)
+                    @StatusRow("Noch nicht geprüft", _stats.StatusOhne, BadgeStyle.Light)
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeLg="7">
+            <RadzenCard>
+                <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
+                    <RadzenText TextStyle="TextStyle.H6" class="rz-my-0">Nächste fällige Aufgaben</RadzenText>
+                    <RadzenButton Text="Alle Aufgaben" Icon="task_alt" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light" Click="@(() => Navigation.NavigateTo("aufgaben"))" />
+                </RadzenStack>
+                @if (_dueTasks.Count == 0)
+                {
+                    <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-2">Keine offenen Aufgaben.</RadzenText>
+                }
+                else
+                {
+                    <RadzenDataGrid Data="@_dueTasks" TItem="DashboardService.DueTask" class="rz-mt-2" AllowSorting="false">
+                        <Columns>
+                            <RadzenDataGridColumn TItem="DashboardService.DueTask" Property="DueDate" Title="Fällig" Width="110px" FormatString="{0:dd.MM.yyyy}">
+                                <Template Context="t">
+                                    <span style="@(t.Overdue ? "color: var(--rz-danger); font-weight:600;" : "")">@t.DueDate.ToString("dd.MM.yyyy")</span>
+                                </Template>
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn TItem="DashboardService.DueTask" Property="ArticleIdentification" Title="Artikel" />
+                            <RadzenDataGridColumn TItem="DashboardService.DueTask" Property="FormName" Title="Formular" />
+                        </Columns>
+                    </RadzenDataGrid>
+                }
+            </RadzenCard>
+        </RadzenColumn>
+    </RadzenRow>
+}
+
+@code {
+    private RenderFragment StatusRow(string label, int count, BadgeStyle style) => __builder =>
+    {
+        <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
+            <RadzenBadge Text="@label" BadgeStyle="style" />
+            <RadzenText TextStyle="TextStyle.Body1" class="rz-my-0" Style="font-weight:600">@count</RadzenText>
+        </RadzenStack>
+    };
+
+    private DashboardService.Stats? _stats;
+    private List<DashboardService.DueTask> _dueTasks = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _stats = await Dashboard.GetStatsAsync();
+        _dueTasks = await Dashboard.GetUpcomingTasksAsync();
+    }
+}

@@ -1,0 +1,57 @@
+@inject FormService FormService
+
+<RadzenStack Gap="1rem">
+    @if (_versions.Count == 0)
+    {
+        <RadzenText>Keine Versionen vorhanden.</RadzenText>
+    }
+    else
+    {
+        @foreach (var v in _versions)
+        {
+            <RadzenCard Variant="Variant.Outlined">
+                <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center" class="rz-mb-2">
+                    <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-my-0">
+                        Version @v.VersionNumber
+                        @if (v.Id == _currentVersionId)
+                        {
+                            <RadzenBadge Text="aktuell" BadgeStyle="BadgeStyle.Success" class="rz-ml-2" />
+                        }
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.Caption">
+                        @v.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")@(v.EditedByUser is not null ? $" · {v.EditedByUser.FullName}" : "")
+                    </RadzenText>
+                </RadzenStack>
+                <ul class="rz-m-0">
+                    @foreach (var f in v.Fields.OrderBy(f => f.SortOrder))
+                    {
+                        <li>
+                            @f.Label — <em>@FieldTypeInfo.Label(f.FieldType)</em>
+                            @if (!string.IsNullOrEmpty(f.Unit)) { <span>(@f.Unit)</span> }
+                            @if (!string.IsNullOrEmpty(f.ReferenceValue)) { <span> · Referenz: @f.ReferenceValue</span> }
+                        </li>
+                    }
+                </ul>
+            </RadzenCard>
+        }
+    }
+    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End">
+        <RadzenButton Text="Schließen" ButtonStyle="ButtonStyle.Light" Click="() => Dialogs.Close()" />
+    </RadzenStack>
+</RadzenStack>
+
+@code {
+    [Parameter] public int FormId { get; set; }
+    [Parameter] public int? CurrentVersionIdParam { get; set; }
+
+    [Inject] private DialogService Dialogs { get; set; } = default!;
+
+    private List<Data.Entities.FormVersion> _versions = new();
+    private int? _currentVersionId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _versions = await FormService.GetVersionsAsync(FormId);
+        _currentVersionId = CurrentVersionIdParam;
+    }
+}

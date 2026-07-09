@@ -1,0 +1,83 @@
+@page "/stammdaten/benutzer"
+@attribute [Authorize]
+@inject UserService UserService
+@inject NotificationService Notifications
+@inject DialogService Dialogs
+
+<PageTitle>Benutzer · Asset Manager</PageTitle>
+
+<RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center" class="rz-mb-3">
+    <RadzenText TextStyle="TextStyle.H4" class="rz-my-0">Benutzer</RadzenText>
+    <RadzenButton Icon="add" Text="Neuer Benutzer" ButtonStyle="ButtonStyle.Primary" Click="() => OpenEditor(null)" />
+</RadzenStack>
+
+<RadzenDataGrid @ref="_grid" Data="@_users" TItem="User" AllowSorting="true"
+                AllowFiltering="true" FilterMode="FilterMode.Advanced" GridLines="DataGridGridLines.Both" AllowColumnResize="true"
+                AllowColumnPicking="true" AllowPaging="true" PageSize="20"
+                PageSizeOptions="@(new int[] { 10, 20, 50, 100 })" ShowPagingSummary="true"
+                RowDoubleClick="@(args => OpenEditor(args.Data.Id))">
+    <Columns>
+        <RadzenDataGridColumn TItem="User" Property="LastName" Title="Nachname" />
+        <RadzenDataGridColumn TItem="User" Property="FirstName" Title="Vorname" />
+        <RadzenDataGridColumn TItem="User" Property="Email" Title="E-Mail" />
+        <RadzenDataGridColumn TItem="User" Property="IsActive" Title="Aktiv" Width="90px" TextAlign="TextAlign.Center">
+            <Template Context="user"><RadzenCheckBox Value="user.IsActive" Disabled="true" /></Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="User" Context="user" Title="Aktionen" Sortable="false" Filterable="false" Pickable="false" Width="140px" TextAlign="TextAlign.Center">
+            <Template Context="user">
+                <RadzenButton Icon="edit" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="() => OpenEditor(user.Id)" title="Bearbeiten" />
+                <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small" Click="() => DeleteRow(user)" title="Löschen" />
+            </Template>
+        </RadzenDataGridColumn>
+    </Columns>
+</RadzenDataGrid>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthState { get; set; }
+
+    private RadzenDataGrid<User> _grid = default!;
+    private List<User> _users = new();
+    private int? _currentUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState is not null)
+        {
+            var state = await AuthState;
+            var id = state.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (int.TryParse(id, out var parsed)) _currentUserId = parsed;
+        }
+        await Reload();
+    }
+
+    private async Task Reload() => _users = await UserService.GetAllAsync();
+
+    private async Task OpenEditor(int? userId)
+    {
+        var result = await Dialogs.OpenAsync<UserEditDialog>(
+            userId is null ? "Neuer Benutzer" : "Benutzer bearbeiten",
+            new Dictionary<string, object?> { ["UserId"] = userId },
+            new DialogOptions { Width = "560px", Resizable = true, Draggable = true });
+
+        if (result is true) await Reload();
+    }
+
+    private async Task DeleteRow(User user)
+    {
+        if (user.Id == _currentUserId)
+        {
+            Notify("Der aktuell angemeldete Benutzer kann nicht gelöscht werden.");
+            return;
+        }
+        var confirmed = await Dialogs.Confirm($"Benutzer \"{user.FullName}\" wirklich löschen?", "Löschen bestätigen",
+            new ConfirmOptions { OkButtonText = "Löschen", CancelButtonText = "Abbrechen" });
+        if (confirmed != true) return;
+
+        await UserService.DeleteAsync(user.Id);
+        await Reload();
+    }
+
+    private void Notify(string message) =>
+        Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Warning, Summary = "Hinweis", Detail = message, Duration = 4000 });
+}

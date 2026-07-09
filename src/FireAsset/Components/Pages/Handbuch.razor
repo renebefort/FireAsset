@@ -1,0 +1,170 @@
+@page "/handbuch"
+@attribute [Authorize]
+
+<PageTitle>Handbuch · Asset Manager</PageTitle>
+
+<RadzenText TextStyle="TextStyle.H4" class="rz-mb-1">Handbuch</RadzenText>
+<RadzenText TextStyle="TextStyle.Body1" class="rz-mb-4">
+    Diese Anleitung erklärt Schritt für Schritt, wie der Asset Manager im Alltag genutzt wird –
+    von der Ersteinrichtung über das Anlegen von Geräten bis zur Durchführung und Dokumentation von Prüfungen.
+</RadzenText>
+
+<RadzenCard class="rz-mb-3">
+    <RadzenText TextStyle="TextStyle.H6">1. Überblick</RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2">
+        Der Asset Manager verwaltet Geräte („Artikel"), ihre Standorte und die wiederkehrenden Prüfungen.
+        Jeder Artikel gehört zu einer <strong>Kategorie</strong>. Die Kategorie legt über <strong>Intervalle</strong>
+        fest, welche Prüfungen in welchem Rhythmus fällig werden und welches <strong>Formular</strong> dabei
+        auszufüllen ist. Aus diesen Regeln erzeugt das System automatisch <strong>Aufgaben</strong>. Wird eine
+        Aufgabe abgearbeitet, entsteht ein <strong>Prüfprotokoll</strong> (die Historie) und die nächste Aufgabe
+        wird automatisch angelegt.
+    </RadzenText>
+</RadzenCard>
+
+<RadzenCard class="rz-mb-3">
+    <RadzenText TextStyle="TextStyle.H6">2. Anmeldung</RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2">
+        Melden Sie sich mit E-Mail und Passwort an. Benutzerkonten werden unter
+        <em>Stammdaten → Benutzer</em> verwaltet. Über <strong>Abmelden</strong> oben rechts verlassen Sie die Anwendung.
+    </RadzenText>
+</RadzenCard>
+
+<RadzenCard class="rz-mb-3">
+    <RadzenText TextStyle="TextStyle.H6">3. Empfohlene Reihenfolge der Ersteinrichtung</RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2" class="rz-mb-2">
+        Da die Bereiche aufeinander aufbauen, richten Sie die Stammdaten am besten in dieser Reihenfolge ein:
+    </RadzenText>
+    <ol>
+        <li><strong>Standorte</strong> anlegen (z. B. Fahrzeug → HLF → Innenraum).</li>
+        <li><strong>Formulare</strong> definieren (die Felder, die bei einer Prüfung erfasst werden).</li>
+        <li><strong>Kategorien &amp; Intervalle</strong> anlegen und die Intervalle mit Formularen verknüpfen.</li>
+        <li><strong>Artikel</strong> anlegen – dabei entstehen automatisch die Prüfaufgaben.</li>
+    </ol>
+</RadzenCard>
+
+<RadzenCard class="rz-mb-3">
+    <RadzenText TextStyle="TextStyle.H6">4. Standorte (Stammdaten)</RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2">
+        Standorte sind hierarchisch. Legen Sie zuerst die oberste Ebene an (ohne übergeordneten Standort),
+        dann die untergeordneten und wählen Sie jeweils den übergeordneten Standort. Die Spalte <em>Pfad</em>
+        zeigt die vollständige Hierarchie (z. B. „Fahrzeug &gt; HLF &gt; Innenraum"). Optional können Sie je
+        Standort einen <strong>Barcode</strong> und ein Icon hinterlegen – der Barcode wird für den schnellen
+        Standortwechsel benötigt.
+    </RadzenText>
+</RadzenCard>
+
+<RadzenCard class="rz-mb-3">
+    <RadzenText TextStyle="TextStyle.H6">5. Formulare &amp; Versionierung</RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2">
+        Ein Formular besteht aus frei definierbaren Feldern. Je Feld wählen Sie einen <strong>Typ</strong>
+        (Ja/Nein, Text, Ganzzahl, Gleitkommazahl, mehrzeiliger Text, Datum). Bei numerischen Feldern können
+        Einheit und Referenzwert angegeben werden. Die Reihenfolge der Felder ändern Sie mit den Pfeil-Buttons.
+    </RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-2">
+        <strong>Wichtig – Versionierung:</strong> Jede Änderung an den Feldern erzeugt beim Speichern eine neue
+        <em>Version</em> des Formulars. Bereits erstellte Protokolle behalten immer ihre ursprüngliche Version,
+        sodass alte Prüfungen unverändert und nachvollziehbar bleiben. Reine Namens-/Beschreibungsänderungen
+        erzeugen keine neue Version. Die Versionen sehen Sie über die Aktion <em>Versionen</em>.
+    </RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-2">
+        Das abschließende <strong>Prüfergebnis</strong> (Bestanden / Mangelhaft / Nicht bestanden) ist immer
+        automatisch Teil jeder Prüfung – dafür ist kein eigenes Feld nötig.
+    </RadzenText>
+</RadzenCard>
+
+<RadzenCard class="rz-mb-3">
+    <RadzenText TextStyle="TextStyle.H6">6. Kategorien &amp; Intervalle</RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2">
+        Legen Sie eine Kategorie an (z. B. „Atemschutz.PSS5000"). Klicken Sie die Kategorie in der Liste an –
+        darunter erscheinen ihre <strong>Intervalle</strong>. Ein Intervall hat einen Namen, einen
+        <strong>Rhythmus in Monaten</strong> und ein zugeordnetes <strong>Formular</strong>. Nur <em>aktive</em>
+        Intervalle mit hinterlegtem Formular erzeugen Aufgaben.
+    </RadzenText>
+</RadzenCard>
+
+<RadzenCard class="rz-mb-3">
+    <RadzenText TextStyle="TextStyle.H6">7. Artikel anlegen</RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2">
+        Unter <em>Artikelstamm</em> legen Sie Geräte an. Pflicht sind Identifikation/Name und Kategorie;
+        das <strong>Anschaffungsdatum</strong> ist die Basis für die erste Fälligkeit. Optional: Hersteller,
+        Typ, Serien-/Inventarnummer, Barcode, Standort und ein <strong>Ende-Datum</strong>.
+    </RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-2">
+        Beim Speichern erzeugt das System automatisch für jedes aktive Intervall der Kategorie eine Aufgabe
+        (erste Fälligkeit = Anschaffungsdatum + Rhythmus). Liegt eine Fälligkeit nach dem Ende-Datum des Artikels,
+        wird dafür keine Aufgabe angelegt und Sie erhalten einen Hinweis.
+    </RadzenText>
+</RadzenCard>
+
+<RadzenCard class="rz-mb-3">
+    <RadzenText TextStyle="TextStyle.H6">8. Aufgaben &amp; Prüfungen durchführen</RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2">
+        Unter <em>Aufgaben</em> sehen Sie alle offenen Prüfungen, standardmäßig nach Fälligkeit sortiert.
+        So arbeiten Sie eine Prüfung ab:
+    </RadzenText>
+    <ol>
+        <li>Bei Bedarf das <strong>Fälligkeitsdatum</strong> direkt in der Liste anpassen.</li>
+        <li>Auf <strong>Prüfen</strong> klicken (oder Zeile doppelklicken) – das zugeordnete Formular öffnet sich.</li>
+        <li>Die Felder ausfüllen. Über den Schalter <strong>„Letzte Werte anzeigen"</strong> werden die Werte der
+            vorherigen Prüfung eingeblendet, um sie zu vergleichen.</li>
+        <li>Ein <strong>Prüfergebnis</strong> wählen (Bestanden / Mangelhaft / Nicht bestanden) und speichern.</li>
+    </ol>
+    <RadzenText TextStyle="TextStyle.Body2">
+        Nach dem Speichern entsteht ein Protokoll, die Aufgabe gilt als erledigt und die
+        <strong>Folgeaufgabe</strong> wird automatisch angelegt (Fälligkeit = Erledigt-Datum + Rhythmus).
+        Der Prüfstatus des Artikels entspricht dem Ergebnis der zuletzt erfassten Prüfung.
+    </RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-2">
+        <strong>Mehrere gleichartige Prüfungen:</strong> Markieren Sie mehrere Aufgaben über die Kontrollkästchen
+        und nutzen Sie <strong>„Stapel abarbeiten"</strong>, um sie nacheinander zu erfassen.
+        Über <strong>„Manuelle Aufgabe"</strong> legen Sie eine zusätzliche Prüfung außerhalb der Intervalle an.
+    </RadzenText>
+</RadzenCard>
+
+<RadzenCard class="rz-mb-3">
+    <RadzenText TextStyle="TextStyle.H6">9. Ungeplante Prüfung</RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2">
+        Für spontane Kontrollen (z. B. „Sichtprüfung nach dem Einsatz") nutzen Sie im <em>Artikelstamm</em>
+        die Aktion <strong>Ungeplante Prüfung</strong>. Sie wählen ein Formular, erfassen die Werte und
+        speichern – es entsteht ein Protokoll, ohne dass bestehende Aufgaben verändert werden.
+    </RadzenText>
+</RadzenCard>
+
+<RadzenCard class="rz-mb-3">
+    <RadzenText TextStyle="TextStyle.H6">10. Standortwechsel per Barcode</RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2">
+        Über <em>Artikelstamm → Standortwechsel</em> lagern Sie ein Gerät schnell um: den Barcode des Artikels
+        scannen (oder eingeben) und mit Enter bestätigen, danach den Barcode des Zielstandorts scannen und
+        auf <strong>Umlagern</strong>. Ein USB-Scanner verhält sich wie eine Tastatur. Das Barcode-Suchfeld in
+        der Artikelliste öffnet einen Artikel direkt anhand seines Barcodes.
+    </RadzenText>
+</RadzenCard>
+
+<RadzenCard class="rz-mb-3">
+    <RadzenText TextStyle="TextStyle.H6">11. Protokolle</RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2">
+        Unter <em>Protokolle</em> finden Sie die vollständige Prüfhistorie. Über <strong>Detail</strong>
+        sehen Sie alle erfassten Werte einer Prüfung – jeweils in der exakten Formularversion von damals.
+        Protokolle sind nur lesbar und werden nicht verändert.
+    </RadzenText>
+</RadzenCard>
+
+<RadzenCard class="rz-mb-3">
+    <RadzenText TextStyle="TextStyle.H6">12. Dashboard &amp; Export</RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2">
+        Das <em>Dashboard</em> zeigt Kennzahlen (Artikel, offene/überfällige Aufgaben, Protokolle), die
+        Prüfstatus-Verteilung und die nächsten fälligen Aufgaben. Unter <em>Export</em> laden Sie die
+        Inventarliste als CSV-Datei herunter – optional gefiltert nach Kategorie, Standort und Status.
+    </RadzenText>
+</RadzenCard>
+
+<RadzenCard class="rz-mb-3">
+    <RadzenText TextStyle="TextStyle.H6">13. Tipps zu den Übersichten</RadzenText>
+    <ul>
+        <li><strong>Filtern:</strong> Über das Trichter-Symbol im Spaltenkopf filtern Sie je Spalte.</li>
+        <li><strong>Sortieren:</strong> Klick auf den Spaltenkopf sortiert; erneuter Klick kehrt die Richtung um.</li>
+        <li><strong>Spalten ein-/ausblenden:</strong> Über das Spalten-Symbol oben rechts im Grid.</li>
+        <li><strong>Spalten anordnen (Aufgaben):</strong> Spaltenköpfe per Drag &amp; Drop verschieben.</li>
+        <li><strong>Seitengröße:</strong> Unten im Grid die Anzahl der Zeilen pro Seite wählen.</li>
+    </ul>
+</RadzenCard>

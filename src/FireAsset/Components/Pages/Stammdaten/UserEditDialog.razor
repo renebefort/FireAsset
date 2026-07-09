@@ -1,0 +1,93 @@
+@inject UserService UserService
+@inject NotificationService Notifications
+@inject DialogService Dialogs
+
+<RadzenStack Gap="0.85rem">
+    <RadzenRow Gap="0.75rem">
+        <RadzenColumn Size="12" SizeMd="6">
+            <label class="fa-label">Vorname</label>
+            <input class="fa-input" @bind="_user.FirstName" />
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMd="6">
+            <label class="fa-label">Nachname</label>
+            <input class="fa-input" @bind="_user.LastName" />
+        </RadzenColumn>
+    </RadzenRow>
+
+    <div>
+        <label class="fa-label">E-Mail</label>
+        <input class="fa-input" type="email" @bind="_user.Email" />
+    </div>
+
+    <div>
+        <label class="fa-label">Passwort @(_isNew ? "(erforderlich)" : "(leer lassen = unverändert)")</label>
+        <input class="fa-input" type="password" @bind="_password" autocomplete="new-password" />
+    </div>
+
+    <label class="fa-checkbox">
+        <input type="checkbox" @bind="_user.IsActive" /> Aktiv
+    </label>
+
+    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem">
+        <RadzenButton Text="Abbrechen" ButtonStyle="ButtonStyle.Light" Click="() => Dialogs.Close(false)" />
+        <RadzenButton Text="Speichern" ButtonStyle="ButtonStyle.Primary" Icon="save" Click="Save" />
+    </RadzenStack>
+</RadzenStack>
+
+@code {
+    [Parameter] public int? UserId { get; set; }
+
+    private User _user = new() { IsActive = true };
+    private string _password = string.Empty;
+    private bool _isNew = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (UserId is int id)
+        {
+            var existing = await UserService.GetByIdAsync(id);
+            if (existing is not null)
+            {
+                _user = existing;
+                _isNew = false;
+            }
+        }
+    }
+
+    private async Task Save()
+    {
+        if (string.IsNullOrWhiteSpace(_user.FirstName) || string.IsNullOrWhiteSpace(_user.LastName))
+        {
+            Notify("Vor- und Nachname sind erforderlich.");
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_user.Email) || !_user.Email.Contains('@'))
+        {
+            Notify("Bitte eine gültige E-Mail angeben.");
+            return;
+        }
+        if (await UserService.EmailExistsAsync(_user.Email, _isNew ? null : _user.Id))
+        {
+            Notify("Diese E-Mail wird bereits verwendet.");
+            return;
+        }
+        if (_isNew && string.IsNullOrWhiteSpace(_password))
+        {
+            Notify("Für einen neuen Benutzer ist ein Passwort erforderlich.");
+            return;
+        }
+
+        if (_isNew)
+        {
+            await UserService.CreateAsync(_user, _password);
+        }
+        else
+        {
+            await UserService.UpdateAsync(_user, string.IsNullOrWhiteSpace(_password) ? null : _password);
+        }
+        Dialogs.Close(true);
+    }
+
+    private void Notify(string message) =>
+        Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Warning, Summary = "Hinweis", Detail = message, Duration = 4000 });
+}

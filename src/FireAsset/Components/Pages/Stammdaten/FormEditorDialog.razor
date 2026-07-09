@@ -1,0 +1,148 @@
+@inject FormService FormService
+@inject NotificationService Notifications
+@inject DialogService Dialogs
+
+<RadzenStack Gap="0.85rem">
+    <RadzenRow Gap="0.75rem" AlignItems="AlignItems.End">
+        <RadzenColumn Size="12" SizeMd="9">
+            <label class="fa-label">Name</label>
+            <input class="fa-input" @bind="_model.Name" />
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMd="3">
+            <label class="fa-checkbox">
+                <input type="checkbox" @bind="_model.IsActive" /> Aktiv
+            </label>
+        </RadzenColumn>
+    </RadzenRow>
+
+    <div>
+        <label class="fa-label">Beschreibung</label>
+        <textarea class="fa-input fa-textarea" rows="2" @bind="_model.Description"></textarea>
+    </div>
+
+    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
+        <RadzenText TextStyle="TextStyle.H6" class="rz-my-0">Felder</RadzenText>
+        <RadzenButton Icon="add" Text="Feld hinzufügen" Size="ButtonSize.Small" Click="AddField" />
+    </RadzenStack>
+
+    <RadzenText TextStyle="TextStyle.Caption">
+        Jedes Formular endet automatisch mit dem Prüfergebnis (Bestanden / Mangelhaft / Nicht bestanden) –
+        dafür ist kein eigenes Feld nötig.
+    </RadzenText>
+
+    @if (_model.Fields.Count == 0)
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat" ShowIcon="true" AllowClose="false">
+            Noch keine Felder. Fügen Sie mindestens ein Feld hinzu.
+        </RadzenAlert>
+    }
+
+    @for (var i = 0; i < _model.Fields.Count; i++)
+    {
+        var index = i;
+        var field = _model.Fields[index];
+        var numeric = FieldTypeInfo.SupportsReference(field.FieldType);
+        <RadzenCard Variant="Variant.Outlined" class="rz-p-3">
+            <RadzenRow Gap="0.5rem" AlignItems="AlignItems.End">
+                <RadzenColumn Size="12" SizeMd="4">
+                    <label class="fa-label">Bezeichnung</label>
+                    <input class="fa-input" @bind="field.Label" />
+                </RadzenColumn>
+                <RadzenColumn Size="12" SizeMd="3">
+                    <label class="fa-label">Typ</label>
+                    <select class="fa-input" @bind="field.FieldType" @bind:after="() => OnTypeChanged(field)">
+                        @foreach (var opt in FieldTypeInfo.All)
+                        {
+                            <option value="@opt.Value">@opt.Label</option>
+                        }
+                    </select>
+                </RadzenColumn>
+                <RadzenColumn Size="6" SizeMd="2">
+                    <label class="fa-label">Einheit</label>
+                    <input class="fa-input" @bind="field.Unit" disabled="@(!numeric)" />
+                </RadzenColumn>
+                <RadzenColumn Size="6" SizeMd="3">
+                    <label class="fa-label">Referenzwert</label>
+                    <input class="fa-input" @bind="field.ReferenceValue" disabled="@(!numeric)" />
+                </RadzenColumn>
+            </RadzenRow>
+            <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.4rem" class="rz-mt-2">
+                <RadzenButton Icon="arrow_upward" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                              Disabled="@(index == 0)" Click="() => Move(index, -1)" title="Nach oben" />
+                <RadzenButton Icon="arrow_downward" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                              Disabled="@(index == _model.Fields.Count - 1)" Click="() => Move(index, 1)" title="Nach unten" />
+                <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small"
+                              Click="() => RemoveField(index)" title="Entfernen" />
+            </RadzenStack>
+        </RadzenCard>
+    }
+
+    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem" class="rz-mt-2">
+        <RadzenButton Text="Abbrechen" ButtonStyle="ButtonStyle.Light" Click="() => Dialogs.Close(false)" />
+        <RadzenButton Text="Speichern" ButtonStyle="ButtonStyle.Primary" Icon="save" Click="Save" />
+    </RadzenStack>
+</RadzenStack>
+
+@code {
+    [Parameter] public int? FormId { get; set; }
+    [Parameter] public int? UserId { get; set; }
+
+    private FormEditModel _model = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (FormId is int id)
+        {
+            _model = await FormService.GetEditModelAsync(id) ?? new FormEditModel { FormId = id };
+        }
+        else
+        {
+            _model = new FormEditModel { IsActive = true };
+        }
+    }
+
+    private void AddField() => _model.Fields.Add(new FormFieldModel { Label = "", FieldType = FieldType.YesNo });
+
+    private void RemoveField(int index) => _model.Fields.RemoveAt(index);
+
+    private void Move(int index, int delta)
+    {
+        var target = index + delta;
+        if (target < 0 || target >= _model.Fields.Count) return;
+        (_model.Fields[index], _model.Fields[target]) = (_model.Fields[target], _model.Fields[index]);
+    }
+
+    private void OnTypeChanged(FormFieldModel field)
+    {
+        if (!FieldTypeInfo.SupportsReference(field.FieldType))
+        {
+            field.Unit = null;
+            field.ReferenceValue = null;
+        }
+    }
+
+    private async Task Save()
+    {
+        if (string.IsNullOrWhiteSpace(_model.Name))
+        {
+            Notify("Der Name des Formulars ist erforderlich.");
+            return;
+        }
+        if (_model.Fields.Count == 0)
+        {
+            Notify("Bitte mindestens ein Feld anlegen.");
+            return;
+        }
+        if (_model.Fields.Any(f => string.IsNullOrWhiteSpace(f.Label)))
+        {
+            Notify("Jedes Feld benötigt eine Bezeichnung.");
+            return;
+        }
+
+        await FormService.SaveAsync(_model, UserId);
+        Dialogs.Close(true);
+    }
+
+    private void Notify(string message) =>
+        Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Warning, Summary = "Hinweis", Detail = message, Duration = 4000 });
+}

@@ -1,0 +1,100 @@
+@inject CategoryService CategoryService
+@inject NotificationService Notifications
+@inject DialogService Dialogs
+
+<RadzenStack Gap="0.85rem">
+    <div>
+        <label class="fa-label">Name des Intervalls</label>
+        <input class="fa-input" @bind="_interval.Name" />
+    </div>
+
+    <RadzenRow Gap="0.75rem">
+        <RadzenColumn Size="12" SizeMd="6">
+            <label class="fa-label">Rhythmus (Monate)</label>
+            <input type="number" min="1" class="fa-input" @bind="_interval.IntervalMonths" />
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMd="6">
+            <label class="fa-checkbox">
+                <input type="checkbox" @bind="_interval.IsActive" /> Aktiv
+            </label>
+        </RadzenColumn>
+    </RadzenRow>
+
+    <div>
+        <label class="fa-label">Formular</label>
+        <select class="fa-input" @bind="_formId">
+            <option value="">(kein Formular)</option>
+            @foreach (var f in _forms)
+            {
+                <option value="@f.Id">@f.Name</option>
+            }
+        </select>
+    </div>
+
+    @if (_forms.Count == 0)
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat" ShowIcon="true" AllowClose="false">
+            Es sind noch keine Formulare vorhanden. Das Intervall kann angelegt und später mit einem Formular verknüpft werden.
+        </RadzenAlert>
+    }
+
+    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem">
+        <RadzenButton Text="Abbrechen" ButtonStyle="ButtonStyle.Light" Click="() => Dialogs.Close(false)" />
+        <RadzenButton Text="Speichern" ButtonStyle="ButtonStyle.Primary" Icon="save" Click="Save" />
+    </RadzenStack>
+</RadzenStack>
+
+@code {
+    [Parameter] public int? IntervalId { get; set; }
+    [Parameter] public int CategoryId { get; set; }
+
+    private InspectionInterval _interval = new() { IntervalMonths = 12, IsActive = true };
+    private List<Form> _forms = new();
+    private int? _formId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _forms = await CategoryService.GetFormsAsync();
+
+        if (IntervalId is int id)
+        {
+            var existing = await CategoryService.GetIntervalAsync(id);
+            if (existing is not null) _interval = existing;
+        }
+        else
+        {
+            _interval.CategoryId = CategoryId;
+        }
+        _formId = _interval.FormId;
+    }
+
+    private async Task Save()
+    {
+        if (string.IsNullOrWhiteSpace(_interval.Name))
+        {
+            Notify("Der Name des Intervalls ist erforderlich.");
+            return;
+        }
+        if (_interval.IntervalMonths < 1)
+        {
+            Notify("Der Rhythmus muss mindestens 1 Monat betragen.");
+            return;
+        }
+
+        _interval.FormId = _formId;
+
+        if (_interval.Id == 0)
+        {
+            _interval.CategoryId = CategoryId;
+            await CategoryService.CreateIntervalAsync(_interval);
+        }
+        else
+        {
+            await CategoryService.UpdateIntervalAsync(_interval);
+        }
+        Dialogs.Close(true);
+    }
+
+    private void Notify(string message) =>
+        Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Warning, Summary = "Hinweis", Detail = message, Duration = 4000 });
+}

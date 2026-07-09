@@ -1,0 +1,172 @@
+@page "/aufgaben"
+@attribute [Authorize]
+@inject TaskService TaskService
+@inject NotificationService Notifications
+@inject DialogService Dialogs
+
+<PageTitle>Aufgaben · Asset Manager</PageTitle>
+
+<RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center" class="rz-mb-3">
+    <RadzenText TextStyle="TextStyle.H4" class="rz-my-0">Aufgaben</RadzenText>
+    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
+        <RadzenCheckBox @bind-Value="_includeDone" Name="done" Change="@((bool _) => Reload())" />
+        <RadzenLabel Text="Erledigte anzeigen" Component="done" class="rz-mr-2" />
+        <RadzenButton Icon="playlist_add_check" Text="Stapel abarbeiten" ButtonStyle="ButtonStyle.Secondary"
+                      Disabled="@(_selectedIds.Count == 0)" Click="ProcessBatch" />
+        <RadzenButton Icon="add" Text="Manuelle Aufgabe" ButtonStyle="ButtonStyle.Primary" Click="OpenManual" />
+    </RadzenStack>
+</RadzenStack>
+
+<RadzenDataGrid @ref="_grid" Data="@_tasks" TItem="TaskService.TaskListItem" AllowSorting="true"
+                AllowFiltering="true" FilterMode="FilterMode.Advanced" GridLines="DataGridGridLines.Both" AllowColumnResize="true"
+                AllowColumnReorder="true" AllowColumnPicking="true" AllowPaging="true" PageSize="25"
+                PageSizeOptions="@(new int[] { 10, 25, 50, 100 })" ShowPagingSummary="true"
+                RowDoubleClick="@(args => Inspect(args.Data))">
+    <Columns>
+        <RadzenDataGridColumn TItem="TaskService.TaskListItem" Title="" Width="45px" Sortable="false" Filterable="false" Reorderable="false" Pickable="false" TextAlign="TextAlign.Center">
+            <HeaderTemplate>
+                <RadzenCheckBox TValue="bool" Value="@AllSelected" Change="@((bool v) => ToggleAll(v))" />
+            </HeaderTemplate>
+            <Template Context="item">
+                <RadzenCheckBox TValue="bool" Value="@_selectedIds.Contains(item.TaskId)"
+                                Change="@((bool v) => ToggleOne(item.TaskId, v))" />
+            </Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="TaskService.TaskListItem" Property="ArticleIdentification" Title="Identifikation" />
+        <RadzenDataGridColumn TItem="TaskService.TaskListItem" Property="ArticleBarcode" Title="Barcode" Width="120px" />
+        <RadzenDataGridColumn TItem="TaskService.TaskListItem" Property="ArticleInventoryNumber" Title="Inv.-Nr." Width="110px" />
+        <RadzenDataGridColumn TItem="TaskService.TaskListItem" Property="CategoryName" Title="Kategorie" Width="140px" />
+        <RadzenDataGridColumn TItem="TaskService.TaskListItem" Property="LocationName" Title="Standort" Width="140px" />
+        <RadzenDataGridColumn TItem="TaskService.TaskListItem" Property="IntervalName" Title="Intervall" Width="150px" />
+        <RadzenDataGridColumn TItem="TaskService.TaskListItem" Property="FormName" Title="Formular" Width="150px" />
+        <RadzenDataGridColumn TItem="TaskService.TaskListItem" Property="DueDate" Title="Fälligkeit" Width="160px" SortOrder="SortOrder.Ascending">
+            <Template Context="item">
+                <RadzenDatePicker TValue="DateTime" Value="@item.DueDate" DateFormat="dd.MM.yyyy"
+                                  Disabled="@(item.Status == FireAsset.Data.Entities.TaskStatus.Erledigt)"
+                                  Change="@((DateTime? args) => OnDueChanged(item, args))" Style="width: 140px" />
+            </Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="TaskService.TaskListItem" Property="ArticleEndDate" Title="Ende-Datum" Width="120px" FormatString="{0:dd.MM.yyyy}" />
+        <RadzenDataGridColumn TItem="TaskService.TaskListItem" Property="Status" Title="Status" Width="120px">
+            <Template Context="item">
+                <RadzenBadge Text="@StatusLabel(item.Status)" BadgeStyle="@StatusBadge(item.Status)" />
+            </Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="TaskService.TaskListItem" Context="item" Title="Aktion" Width="110px" Sortable="false" Filterable="false" Reorderable="false" Pickable="false" TextAlign="TextAlign.Center">
+            <Template Context="item">
+                <RadzenButton Icon="fact_check" Text="Prüfen" Size="ButtonSize.Small"
+                              Disabled="@(item.Status == FireAsset.Data.Entities.TaskStatus.Erledigt)"
+                              Click="() => Inspect(item)" />
+            </Template>
+        </RadzenDataGridColumn>
+    </Columns>
+</RadzenDataGrid>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthState { get; set; }
+
+    private RadzenDataGrid<TaskService.TaskListItem> _grid = default!;
+    private List<TaskService.TaskListItem> _tasks = new();
+    private HashSet<int> _selectedIds = new();
+    private bool _includeDone;
+    private int? _userId;
+
+    private bool AllSelected => _tasks.Count > 0 && _tasks.All(t => _selectedIds.Contains(t.TaskId));
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState is not null)
+        {
+            var state = await AuthState;
+            var id = state.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (int.TryParse(id, out var parsed)) _userId = parsed;
+        }
+        await Reload();
+    }
+
+    private async Task Reload()
+    {
+        _tasks = await TaskService.GetTasksAsync(_includeDone);
+        _selectedIds.RemoveWhere(id => _tasks.All(t => t.TaskId != id));
+    }
+
+    private void ToggleOne(int taskId, bool selected)
+    {
+        if (selected) _selectedIds.Add(taskId); else _selectedIds.Remove(taskId);
+    }
+
+    private void ToggleAll(bool selected)
+    {
+        if (selected) foreach (var t in _tasks) _selectedIds.Add(t.TaskId);
+        else _selectedIds.Clear();
+    }
+
+    private async Task OnDueChanged(TaskService.TaskListItem item, DateTime? date)
+    {
+        if (date is null) return;
+        await TaskService.UpdateDueDateAsync(item.TaskId, date.Value);
+        Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = "Aktualisiert", Detail = "Fälligkeitsdatum gespeichert.", Duration = 2500 });
+        await Reload();
+    }
+
+    private async Task Inspect(TaskService.TaskListItem item)
+    {
+        if (item.Status == FireAsset.Data.Entities.TaskStatus.Erledigt) return;
+        var result = await OpenInspection(item);
+        if (result is true) await Reload();
+    }
+
+    private async Task<object?> OpenInspection(TaskService.TaskListItem item)
+    {
+        return await Dialogs.OpenAsync<InspectionDialog>($"Prüfung: {item.ArticleIdentification}",
+            new Dictionary<string, object?>
+            {
+                ["TaskId"] = item.TaskId,
+                ["ArticleId"] = item.ArticleId,
+                ["FormId"] = item.FormId,
+                ["ArticleName"] = item.ArticleIdentification,
+                ["DueDateParam"] = item.DueDate,
+                ["Unplanned"] = false,
+                ["UserId"] = _userId,
+            },
+            new DialogOptions { Width = "700px", Height = "85%", Resizable = true, Draggable = true });
+    }
+
+    private async Task ProcessBatch()
+    {
+        var batch = _tasks.Where(t => _selectedIds.Contains(t.TaskId)
+            && t.Status != FireAsset.Data.Entities.TaskStatus.Erledigt).ToList();
+        foreach (var item in batch)
+        {
+            var result = await OpenInspection(item);
+            if (result is not true) break; // Abbruch beendet den Stapel
+        }
+        _selectedIds.Clear();
+        await Reload();
+    }
+
+    private async Task OpenManual()
+    {
+        var result = await Dialogs.OpenAsync<ManualTaskDialog>("Manuelle Aufgabe anlegen",
+            new Dictionary<string, object?>(),
+            new DialogOptions { Width = "500px", Resizable = false, Draggable = true });
+        if (result is true) await Reload();
+    }
+
+    private static string StatusLabel(FireAsset.Data.Entities.TaskStatus s) => s switch
+    {
+        FireAsset.Data.Entities.TaskStatus.Neu => "Neu",
+        FireAsset.Data.Entities.TaskStatus.InBearbeitung => "In Bearbeitung",
+        FireAsset.Data.Entities.TaskStatus.Erledigt => "Erledigt",
+        _ => s.ToString(),
+    };
+
+    private static BadgeStyle StatusBadge(FireAsset.Data.Entities.TaskStatus s) => s switch
+    {
+        FireAsset.Data.Entities.TaskStatus.Neu => BadgeStyle.Info,
+        FireAsset.Data.Entities.TaskStatus.InBearbeitung => BadgeStyle.Warning,
+        FireAsset.Data.Entities.TaskStatus.Erledigt => BadgeStyle.Success,
+        _ => BadgeStyle.Light,
+    };
+}

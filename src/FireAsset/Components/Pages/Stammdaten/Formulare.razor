@@ -1,0 +1,94 @@
+@page "/stammdaten/formulare"
+@attribute [Authorize]
+@inject FormService FormService
+@inject NotificationService Notifications
+@inject DialogService Dialogs
+
+<PageTitle>Formulare · Asset Manager</PageTitle>
+
+<RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center" class="rz-mb-3">
+    <RadzenText TextStyle="TextStyle.H4" class="rz-my-0">Formulare</RadzenText>
+    <RadzenButton Icon="add" Text="Neues Formular" ButtonStyle="ButtonStyle.Primary" Click="() => OpenEditor(null)" />
+</RadzenStack>
+
+<RadzenDataGrid Data="@_forms" TItem="FormService.FormSummary" AllowSorting="true"
+                AllowFiltering="true" FilterMode="FilterMode.Advanced" GridLines="DataGridGridLines.Both" AllowColumnResize="true" AllowColumnPicking="true"
+                AllowPaging="true" PageSize="20" PageSizeOptions="@(new int[] { 10, 20, 50, 100 })" ShowPagingSummary="true">
+    <Columns>
+        <RadzenDataGridColumn TItem="FormService.FormSummary" Property="Name" Title="Name" />
+        <RadzenDataGridColumn TItem="FormService.FormSummary" Property="Description" Title="Beschreibung" />
+        <RadzenDataGridColumn TItem="FormService.FormSummary" Property="CurrentVersionNumber" Title="Aktuelle Version" Width="140px" TextAlign="TextAlign.Center">
+            <Template Context="f">v@(f.CurrentVersionNumber) (@f.FieldCount Felder)</Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="FormService.FormSummary" Property="VersionCount" Title="Versionen" Width="110px" TextAlign="TextAlign.Center" />
+        <RadzenDataGridColumn TItem="FormService.FormSummary" Property="IsActive" Title="Aktiv" Width="90px" TextAlign="TextAlign.Center">
+            <Template Context="f">
+                <RadzenBadge Text="@(f.IsActive ? "aktiv" : "inaktiv")" BadgeStyle="@(f.IsActive ? BadgeStyle.Success : BadgeStyle.Light)" />
+            </Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="FormService.FormSummary" Context="f" Title="Aktionen" Sortable="false" Filterable="false" Pickable="false" Width="200px" TextAlign="TextAlign.Center">
+            <Template Context="f">
+                <RadzenButton Icon="edit" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="() => OpenEditor(f.Id)" title="Bearbeiten" />
+                <RadzenButton Icon="history" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="() => OpenVersions(f)" title="Versionen" />
+                <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small" Click="() => Delete(f)" title="Löschen" />
+            </Template>
+        </RadzenDataGridColumn>
+    </Columns>
+</RadzenDataGrid>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthState { get; set; }
+
+    private List<FormService.FormSummary> _forms = new();
+    private int? _userId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState is not null)
+        {
+            var state = await AuthState;
+            var id = state.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (int.TryParse(id, out var parsed)) _userId = parsed;
+        }
+        await Reload();
+    }
+
+    private async Task Reload() => _forms = await FormService.GetFormsAsync();
+
+    private async Task OpenEditor(int? formId)
+    {
+        var result = await Dialogs.OpenAsync<FormEditorDialog>(
+            formId is null ? "Neues Formular" : "Formular bearbeiten",
+            new Dictionary<string, object?> { ["FormId"] = formId, ["UserId"] = _userId },
+            new DialogOptions { Width = "900px", Height = "80%", Resizable = true, Draggable = true });
+
+        if (result is true)
+        {
+            await Reload();
+            Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = "Gespeichert", Detail = "Formular gespeichert.", Duration = 3000 });
+        }
+    }
+
+    private async Task OpenVersions(FormService.FormSummary f)
+    {
+        await Dialogs.OpenAsync<FormVersionsDialog>($"Versionen: {f.Name}",
+            new Dictionary<string, object?> { ["FormId"] = f.Id, ["CurrentVersionIdParam"] = f.CurrentVersionId },
+            new DialogOptions { Width = "700px", Height = "80%", Resizable = true, Draggable = true });
+    }
+
+    private async Task Delete(FormService.FormSummary f)
+    {
+        var confirmed = await Dialogs.Confirm($"Formular \"{f.Name}\" wirklich löschen?", "Löschen bestätigen",
+            new ConfirmOptions { OkButtonText = "Löschen", CancelButtonText = "Abbrechen" });
+        if (confirmed != true) return;
+
+        var error = await FormService.DeleteAsync(f.Id);
+        if (error is not null)
+        {
+            Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Warning, Summary = "Hinweis", Detail = error, Duration = 5000 });
+            return;
+        }
+        await Reload();
+    }
+}

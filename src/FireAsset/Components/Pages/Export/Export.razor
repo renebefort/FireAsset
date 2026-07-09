@@ -1,0 +1,101 @@
+@page "/export"
+@attribute [Authorize]
+@inject CategoryService CategoryService
+@inject LocationService LocationService
+
+<PageTitle>Export · Asset Manager</PageTitle>
+
+<RadzenText TextStyle="TextStyle.H4" class="rz-mb-3">Export</RadzenText>
+
+<RadzenCard Style="max-width: 640px">
+    <RadzenText TextStyle="TextStyle.H6">Inventarliste (CSV)</RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2" class="rz-mb-3">
+        Exportiert die Artikel als CSV-Datei (Semikolon-getrennt, UTF-8 – direkt in Excel öffenbar).
+        Optional nach Kategorie, Standort und Status filterbar.
+    </RadzenText>
+
+    <RadzenStack Gap="0.75rem">
+        <div>
+            <label class="fa-label">Kategorie</label>
+            <select class="fa-input" @bind="_categoryId">
+                <option value="">(alle Kategorien)</option>
+                @foreach (var c in _categories)
+                {
+                    <option value="@c.Id">@c.Name</option>
+                }
+            </select>
+        </div>
+        <div>
+            <label class="fa-label">Standort</label>
+            <select class="fa-input" @bind="_locationId">
+                <option value="">(alle Standorte)</option>
+                @foreach (var o in _locationOptions)
+                {
+                    <option value="@o.Id">@o.Path</option>
+                }
+            </select>
+        </div>
+        <div style="max-width: 260px">
+            <label class="fa-label">Status</label>
+            <select class="fa-input" @bind="_status">
+                @foreach (var s in _statusOptions)
+                {
+                    <option value="@s.Value">@s.Label</option>
+                }
+            </select>
+        </div>
+
+        <div>
+            <a href="@DownloadUrl" target="_blank" rel="noopener"
+               class="rz-button rz-button-md rz-primary rz-button-icon-left rz-variant-filled"
+               style="text-decoration:none; display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 1rem;">
+                <RadzenIcon Icon="file_download" /> CSV herunterladen
+            </a>
+        </div>
+    </RadzenStack>
+</RadzenCard>
+
+@code {
+    private record StatusOption(string Value, string Label);
+    private record LocationOption(int Id, string Path);
+
+    private static readonly StatusOption[] _statusOptions =
+    {
+        new("all", "Alle"),
+        new("active", "Nur aktive"),
+        new("inactive", "Nur inaktive"),
+    };
+
+    private List<Category> _categories = new();
+    private List<LocationOption> _locationOptions = new();
+
+    private int? _categoryId;
+    private int? _locationId;
+    private string _status = "all";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _categories = await CategoryService.GetCategoriesAsync();
+
+        var locations = await LocationService.GetAllAsync();
+        var byId = locations.ToDictionary(l => l.Id);
+        _locationOptions = locations
+            .Select(l => new LocationOption(l.Id, LocationService.BuildPath(l, byId)))
+            .OrderBy(o => o.Path)
+            .ToList();
+    }
+
+    private string DownloadUrl
+    {
+        get
+        {
+            var query = new List<string>();
+            if (_categoryId is int c) query.Add($"category={c}");
+            if (_locationId is int l) query.Add($"location={l}");
+            if (_status == "active") query.Add("active=true");
+            else if (_status == "inactive") query.Add("active=false");
+            var qs = query.Count > 0 ? "?" + string.Join('&', query) : "";
+            return $"export/inventory.csv{qs}";
+        }
+    }
+}

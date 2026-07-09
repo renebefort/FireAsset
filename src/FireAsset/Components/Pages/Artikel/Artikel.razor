@@ -1,0 +1,157 @@
+@page "/artikel"
+@attribute [Authorize]
+@using FireAsset.Components.Pages.Aufgaben
+@inject ArticleService ArticleService
+@inject NotificationService Notifications
+@inject DialogService Dialogs
+
+<PageTitle>Artikelstamm · Asset Manager</PageTitle>
+
+<RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center" class="rz-mb-3">
+    <RadzenText TextStyle="TextStyle.H4" class="rz-my-0">Artikelstamm</RadzenText>
+    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+        <RadzenButton Icon="swap_horiz" Text="Standortwechsel" ButtonStyle="ButtonStyle.Secondary" Click="OpenLocationChange" />
+        <RadzenButton Icon="add" Text="Artikel anlegen" ButtonStyle="ButtonStyle.Primary" Click="() => OpenEditor(null)" />
+    </RadzenStack>
+</RadzenStack>
+
+<RadzenCard class="rz-mb-3">
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.End" Gap="0.5rem">
+        <RadzenFormField Text="Barcode-Suche" Style="min-width: 260px">
+            <RadzenTextBox @bind-Value="_searchBarcode" @ref="_searchBox" @bind-Value:event="oninput"
+                           @onkeydown="OnSearchKeyDown" />
+        </RadzenFormField>
+        <RadzenButton Icon="search" Text="Suchen" Click="SearchByBarcode" />
+    </RadzenStack>
+</RadzenCard>
+
+<RadzenDataGrid @ref="_grid" Data="@_articles" TItem="Article" AllowSorting="true"
+                AllowFiltering="true" FilterMode="FilterMode.Advanced" GridLines="DataGridGridLines.Both" AllowColumnResize="true"
+                AllowColumnPicking="true" AllowPaging="true" PageSize="20"
+                PageSizeOptions="@(new int[] { 10, 20, 50, 100 })" ShowPagingSummary="true"
+                RowDoubleClick="@(args => OpenEditor(args.Data.Id))">
+    <Columns>
+        <RadzenDataGridColumn TItem="Article" Property="Identification" Title="Identifikation" />
+        <RadzenDataGridColumn TItem="Article" Property="Barcode" Title="Barcode" Width="130px" />
+        <RadzenDataGridColumn TItem="Article" Property="InventoryNumber" Title="Inv.-Nr." Width="120px" />
+        <RadzenDataGridColumn TItem="Article" Property="Manufacturer" Title="Hersteller" Width="130px" />
+        <RadzenDataGridColumn TItem="Article" Property="Type" Title="Typ" Width="130px" />
+        <RadzenDataGridColumn TItem="Article" Title="Kategorie" Property="Category.Name" Width="150px">
+            <Template Context="a">@a.Category?.Name</Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="Article" Title="Standort" Property="Location.Name" Width="150px">
+            <Template Context="a">@a.Location?.Name</Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="Article" Title="Prüfstatus" Width="130px" Sortable="false">
+            <Template Context="a">
+                <RadzenBadge Text="@InspectionResultInfo.Label(a.CurrentInspectionStatus)"
+                             BadgeStyle="@InspectionResultInfo.BadgeStyle(a.CurrentInspectionStatus)" />
+            </Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="Article" Property="IsActive" Title="Aktiv" Width="80px" TextAlign="TextAlign.Center">
+            <Template Context="a"><RadzenCheckBox Value="a.IsActive" Disabled="true" /></Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="Article" Context="a" Title="Aktionen" Sortable="false" Filterable="false" Pickable="false" Width="160px" TextAlign="TextAlign.Center">
+            <Template Context="a">
+                <RadzenButton Icon="edit" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="() => OpenEditor(a.Id)" title="Bearbeiten" />
+                <RadzenButton Icon="fact_check" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="() => UnplannedInspection(a)" title="Ungeplante Prüfung" />
+                <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small" Click="() => Delete(a)" title="Löschen" />
+            </Template>
+        </RadzenDataGridColumn>
+    </Columns>
+</RadzenDataGrid>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthState { get; set; }
+
+    private RadzenDataGrid<Article> _grid = default!;
+    private List<Article> _articles = new();
+    private string _searchBarcode = string.Empty;
+    private RadzenTextBox? _searchBox;
+    private int? _userId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState is not null)
+        {
+            var state = await AuthState;
+            var id = state.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (int.TryParse(id, out var parsed)) _userId = parsed;
+        }
+        await Reload();
+    }
+
+    private async Task Reload() => _articles = await ArticleService.GetArticlesAsync();
+
+    private async Task OnSearchKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key is "Enter" or "NumpadEnter")
+        {
+            await SearchByBarcode();
+        }
+    }
+
+    private async Task SearchByBarcode()
+    {
+        if (string.IsNullOrWhiteSpace(_searchBarcode)) return;
+        var article = await ArticleService.FindByBarcodeAsync(_searchBarcode);
+        if (article is null)
+        {
+            Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Warning, Summary = "Nicht gefunden", Detail = $"Kein Artikel mit Barcode „{_searchBarcode}“.", Duration = 4000 });
+            return;
+        }
+        _searchBarcode = string.Empty;
+        await OpenEditor(article.Id);
+    }
+
+    private async Task OpenEditor(int? articleId)
+    {
+        var result = await Dialogs.OpenAsync<ArticleEditDialog>(
+            articleId is null ? "Artikel anlegen" : "Artikel bearbeiten",
+            new Dictionary<string, object?> { ["ArticleId"] = articleId, ["UserId"] = _userId },
+            new DialogOptions { Width = "1000px", Height = "85%", Resizable = true, Draggable = true });
+
+        if (result is true) await Reload();
+    }
+
+    private async Task OpenLocationChange()
+    {
+        var result = await Dialogs.OpenAsync<LocationChangeDialog>("Standortwechsel",
+            new Dictionary<string, object?>(),
+            new DialogOptions { Width = "500px", Resizable = false, Draggable = true });
+        if (result is true) await Reload();
+    }
+
+    private async Task UnplannedInspection(Article a)
+    {
+        var result = await Dialogs.OpenAsync<InspectionDialog>($"Ungeplante Prüfung: {a.Identification}",
+            new Dictionary<string, object?>
+            {
+                ["TaskId"] = null,
+                ["ArticleId"] = a.Id,
+                ["FormId"] = 0,
+                ["ArticleName"] = a.Identification,
+                ["DueDateParam"] = null,
+                ["Unplanned"] = true,
+                ["UserId"] = _userId,
+            },
+            new DialogOptions { Width = "700px", Height = "85%", Resizable = true, Draggable = true });
+        if (result is true) await Reload();
+    }
+
+    private async Task Delete(Article a)
+    {
+        var confirmed = await Dialogs.Confirm($"Artikel \"{a.Identification}\" wirklich löschen?", "Löschen bestätigen",
+            new ConfirmOptions { OkButtonText = "Löschen", CancelButtonText = "Abbrechen" });
+        if (confirmed != true) return;
+
+        var error = await ArticleService.DeleteAsync(a.Id);
+        if (error is not null)
+        {
+            Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Warning, Summary = "Hinweis", Detail = error, Duration = 5000 });
+            return;
+        }
+        await Reload();
+    }
+}

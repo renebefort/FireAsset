@@ -1,0 +1,75 @@
+@inject ProtocolService ProtocolService
+@inject DialogService Dialogs
+@using System.Globalization
+
+@if (_protocol is null)
+{
+    <RadzenText>Protokoll nicht gefunden.</RadzenText>
+}
+else
+{
+    <RadzenStack Gap="1rem">
+        <RadzenRow>
+            <RadzenColumn Size="6"><strong>Artikel:</strong> @_protocol.Article.Identification</RadzenColumn>
+            <RadzenColumn Size="6"><strong>Formular:</strong> @_protocol.FormVersion.Form.Name (v@(_protocol.FormVersion.VersionNumber))</RadzenColumn>
+            <RadzenColumn Size="6"><strong>Datum:</strong> @_protocol.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</RadzenColumn>
+            <RadzenColumn Size="6"><strong>Erfasst von:</strong> @(_protocol.CreatedByUser is null ? "—" : _protocol.CreatedByUser.FirstName + " " + _protocol.CreatedByUser.LastName)</RadzenColumn>
+            <RadzenColumn Size="6">
+                <strong>Ergebnis:</strong>
+                <RadzenBadge Text="@InspectionResultInfo.Label(_protocol.Result)" BadgeStyle="@InspectionResultInfo.BadgeStyle(_protocol.Result)" />
+            </RadzenColumn>
+            <RadzenColumn Size="6"><strong>Art:</strong> @(_protocol.IsUnplanned ? "Ungeplante Prüfung" : "Geplante Prüfung")</RadzenColumn>
+        </RadzenRow>
+
+        <RadzenText TextStyle="TextStyle.H6" class="rz-mb-0">Erfasste Werte</RadzenText>
+        <RadzenDataGrid Data="@_protocol.FieldValues.OrderBy(v => v.FormField.SortOrder)" TItem="Data.Entities.ProtocolFieldValue" AllowSorting="false">
+            <Columns>
+                <RadzenDataGridColumn TItem="Data.Entities.ProtocolFieldValue" Title="Feld">
+                    <Template Context="v">@v.FormField.Label</Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Data.Entities.ProtocolFieldValue" Title="Typ" Width="200px">
+                    <Template Context="v">@FieldTypeInfo.Label(v.FormField.FieldType)</Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Data.Entities.ProtocolFieldValue" Title="Wert">
+                    <Template Context="v">
+                        @Format(v.FormField.FieldType, v.Value)
+                        @if (!string.IsNullOrEmpty(v.FormField.Unit)) { <span> @v.FormField.Unit</span> }
+                    </Template>
+                </RadzenDataGridColumn>
+            </Columns>
+        </RadzenDataGrid>
+
+        @if (!string.IsNullOrWhiteSpace(_protocol.Notes))
+        {
+            <div>
+                <RadzenText TextStyle="TextStyle.H6" class="rz-mb-1">Zusatzbemerkungen</RadzenText>
+                <RadzenText TextStyle="TextStyle.Body2">@_protocol.Notes</RadzenText>
+            </div>
+        }
+
+        <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End">
+            <RadzenButton Text="Schließen" ButtonStyle="ButtonStyle.Light" Click="() => Dialogs.Close()" />
+        </RadzenStack>
+    </RadzenStack>
+}
+
+@code {
+    [Parameter] public int ProtocolId { get; set; }
+
+    private InspectionProtocol? _protocol;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _protocol = await ProtocolService.GetDetailAsync(ProtocolId);
+    }
+
+    private static string Format(FieldType type, string? value)
+    {
+        if (string.IsNullOrEmpty(value)) return "—";
+        if (type == FieldType.Date && DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d))
+        {
+            return d.ToString("dd.MM.yyyy");
+        }
+        return value;
+    }
+}

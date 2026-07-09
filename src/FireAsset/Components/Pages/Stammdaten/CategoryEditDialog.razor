@@ -1,0 +1,62 @@
+@inject CategoryService CategoryService
+@inject NotificationService Notifications
+@inject DialogService Dialogs
+
+<RadzenStack Gap="0.85rem">
+    <div>
+        <label class="fa-label">Name</label>
+        <input class="fa-input" @bind="_category.Name" />
+    </div>
+
+    <div>
+        <label class="fa-label">Beschreibung</label>
+        <textarea class="fa-input fa-textarea" rows="2" @bind="_category.Description"></textarea>
+    </div>
+
+    <label class="fa-checkbox">
+        <input type="checkbox" @bind="_category.IsActive" /> Aktiv
+    </label>
+
+    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem">
+        <RadzenButton Text="Abbrechen" ButtonStyle="ButtonStyle.Light" Click="() => Dialogs.Close(false)" />
+        <RadzenButton Text="Speichern" ButtonStyle="ButtonStyle.Primary" Icon="save" Click="Save" />
+    </RadzenStack>
+</RadzenStack>
+
+@code {
+    [Parameter] public int? CategoryId { get; set; }
+
+    private Category _category = new() { IsActive = true };
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (CategoryId is int id)
+        {
+            var all = await CategoryService.GetCategoriesAsync();
+            var existing = all.FirstOrDefault(c => c.Id == id);
+            if (existing is not null) _category = existing;
+        }
+    }
+
+    private async Task Save()
+    {
+        if (string.IsNullOrWhiteSpace(_category.Name))
+        {
+            Notify("Der Name ist erforderlich.");
+            return;
+        }
+
+        if (_category.Id == 0)
+        {
+            await CategoryService.CreateCategoryAsync(_category);
+        }
+        else
+        {
+            await CategoryService.UpdateCategoryAsync(_category);
+        }
+        Dialogs.Close(true);
+    }
+
+    private void Notify(string message) =>
+        Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Warning, Summary = "Hinweis", Detail = message, Duration = 4000 });
+}

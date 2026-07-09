@@ -1,0 +1,153 @@
+@page "/stammdaten/kategorien"
+@attribute [Authorize]
+@inject CategoryService CategoryService
+@inject NotificationService Notifications
+@inject DialogService Dialogs
+
+<PageTitle>Kategorien & Intervalle · Asset Manager</PageTitle>
+
+<RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center" class="rz-mb-3">
+    <RadzenText TextStyle="TextStyle.H4" class="rz-my-0">Kategorien & Intervalle</RadzenText>
+    <RadzenButton Icon="add" Text="Neue Kategorie" ButtonStyle="ButtonStyle.Primary" Click="() => OpenCategory(null)" />
+</RadzenStack>
+
+<RadzenDataGrid @ref="_catGrid" Data="@_categories" TItem="Category" AllowSorting="true"
+                AllowFiltering="true" FilterMode="FilterMode.Advanced" GridLines="DataGridGridLines.Both"
+                AllowPaging="true" PageSize="15" PageSizeOptions="@(new int[] { 10, 15, 30, 50 })" ShowPagingSummary="true"
+                SelectionMode="DataGridSelectionMode.Single" @bind-Value="_selectedCategories" RowSelect="OnCategorySelect">
+    <Columns>
+        <RadzenDataGridColumn TItem="Category" Property="Name" Title="Name" />
+        <RadzenDataGridColumn TItem="Category" Property="Description" Title="Beschreibung" />
+        <RadzenDataGridColumn TItem="Category" Title="Intervalle" Width="100px" TextAlign="TextAlign.Center" Sortable="false" Filterable="false">
+            <Template Context="cat">@cat.Intervals.Count</Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="Category" Property="IsActive" Title="Aktiv" Width="90px" TextAlign="TextAlign.Center">
+            <Template Context="cat"><RadzenCheckBox Value="cat.IsActive" Disabled="true" /></Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="Category" Context="cat" Title="Aktionen" Sortable="false" Filterable="false" Width="140px" TextAlign="TextAlign.Center">
+            <Template Context="cat">
+                <RadzenButton Icon="edit" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="() => OpenCategory(cat.Id)" @onclick:stopPropagation title="Bearbeiten" />
+                <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small" Click="() => DeleteCategory(cat)" @onclick:stopPropagation title="Löschen" />
+            </Template>
+        </RadzenDataGridColumn>
+    </Columns>
+</RadzenDataGrid>
+
+@if (_selectedCategory is not null)
+{
+    <RadzenCard class="rz-mt-4">
+        <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center" class="rz-mb-3">
+            <RadzenText TextStyle="TextStyle.H6" class="rz-my-0">Intervalle für „@_selectedCategory.Name"</RadzenText>
+            <RadzenButton Icon="add" Text="Neues Intervall" Size="ButtonSize.Small" Click="() => OpenInterval(null)" />
+        </RadzenStack>
+
+        <RadzenDataGrid @ref="_intGrid" Data="@_intervals" TItem="InspectionInterval" GridLines="DataGridGridLines.Both">
+            <Columns>
+                <RadzenDataGridColumn TItem="InspectionInterval" Property="Name" Title="Name" />
+                <RadzenDataGridColumn TItem="InspectionInterval" Property="IntervalMonths" Title="Rhythmus (Monate)" Width="170px" />
+                <RadzenDataGridColumn TItem="InspectionInterval" Title="Formular">
+                    <Template Context="iv">@(iv.Form?.Name ?? "—")</Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="InspectionInterval" Property="IsActive" Title="Aktiv" Width="90px" TextAlign="TextAlign.Center">
+                    <Template Context="iv"><RadzenCheckBox Value="iv.IsActive" Disabled="true" /></Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="InspectionInterval" Context="iv" Title="Aktionen" Sortable="false" Filterable="false" Width="140px" TextAlign="TextAlign.Center">
+                    <Template Context="iv">
+                        <RadzenButton Icon="edit" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="() => OpenInterval(iv.Id)" title="Bearbeiten" />
+                        <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small" Click="() => DeleteInterval(iv)" title="Löschen" />
+                    </Template>
+                </RadzenDataGridColumn>
+            </Columns>
+        </RadzenDataGrid>
+    </RadzenCard>
+}
+
+@code {
+    private RadzenDataGrid<Category> _catGrid = default!;
+    private RadzenDataGrid<InspectionInterval> _intGrid = default!;
+
+    private List<Category> _categories = new();
+    private IList<Category> _selectedCategories = new List<Category>();
+    private Category? _selectedCategory;
+
+    private List<InspectionInterval> _intervals = new();
+
+    protected override async Task OnInitializedAsync() => await ReloadCategories();
+
+    private async Task ReloadCategories()
+    {
+        _categories = await CategoryService.GetCategoriesAsync();
+        if (_selectedCategory is not null)
+        {
+            _selectedCategory = _categories.FirstOrDefault(c => c.Id == _selectedCategory.Id);
+            _selectedCategories = _selectedCategory is null ? new List<Category>() : new List<Category> { _selectedCategory };
+        }
+    }
+
+    private async Task OpenCategory(int? categoryId)
+    {
+        var result = await Dialogs.OpenAsync<CategoryEditDialog>(
+            categoryId is null ? "Neue Kategorie" : "Kategorie bearbeiten",
+            new Dictionary<string, object?> { ["CategoryId"] = categoryId },
+            new DialogOptions { Width = "520px", Resizable = true, Draggable = true });
+
+        if (result is true) await ReloadCategories();
+    }
+
+    private async Task DeleteCategory(Category cat)
+    {
+        var confirmed = await Dialogs.Confirm($"Kategorie \"{cat.Name}\" wirklich löschen? Zugehörige Intervalle werden mit entfernt.",
+            "Löschen bestätigen", new ConfirmOptions { OkButtonText = "Löschen", CancelButtonText = "Abbrechen" });
+        if (confirmed != true) return;
+
+        var error = await CategoryService.DeleteCategoryAsync(cat.Id);
+        if (error is not null)
+        {
+            Notify(error);
+            return;
+        }
+        if (_selectedCategory?.Id == cat.Id) _selectedCategory = null;
+        await ReloadCategories();
+    }
+
+    private async Task OnCategorySelect(Category cat)
+    {
+        _selectedCategory = cat;
+        await ReloadIntervals();
+    }
+
+    private async Task ReloadIntervals()
+    {
+        if (_selectedCategory is null) return;
+        _intervals = await CategoryService.GetIntervalsAsync(_selectedCategory.Id);
+    }
+
+    private async Task OpenInterval(int? intervalId)
+    {
+        if (_selectedCategory is null) return;
+        var result = await Dialogs.OpenAsync<IntervalEditDialog>(
+            intervalId is null ? "Neues Intervall" : "Intervall bearbeiten",
+            new Dictionary<string, object?> { ["IntervalId"] = intervalId, ["CategoryId"] = _selectedCategory.Id },
+            new DialogOptions { Width = "520px", Resizable = true, Draggable = true });
+
+        if (result is true)
+        {
+            await ReloadIntervals();
+            await ReloadCategories();
+        }
+    }
+
+    private async Task DeleteInterval(InspectionInterval iv)
+    {
+        var confirmed = await Dialogs.Confirm($"Intervall \"{iv.Name}\" wirklich löschen?", "Löschen bestätigen",
+            new ConfirmOptions { OkButtonText = "Löschen", CancelButtonText = "Abbrechen" });
+        if (confirmed != true) return;
+
+        await CategoryService.DeleteIntervalAsync(iv.Id);
+        await ReloadIntervals();
+        await ReloadCategories();
+    }
+
+    private void Notify(string message) =>
+        Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Warning, Summary = "Hinweis", Detail = message, Duration = 4000 });
+}
