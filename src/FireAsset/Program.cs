@@ -1,6 +1,8 @@
+using System.Security.Claims;
 using FireAsset.Components;
 using FireAsset.Data;
 using FireAsset.Services;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
@@ -33,6 +35,7 @@ builder.Services.AddScoped<InspectionService>();
 builder.Services.AddScoped<ProtocolService>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<ExportService>();
+builder.Services.AddSingleton<LoginThrottleService>();
 
 // Authentifizierung: schlanke Cookie-Auth.
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -44,6 +47,26 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.SlidingExpiration = true;
         options.Cookie.Name = "FireAsset.Auth";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+            ? CookieSecurePolicy.SameAsRequest
+            : CookieSecurePolicy.Always;
+        options.Events = new CookieAuthenticationEvents
+        {
+            // Cookie-Revalidierung: gelöschte oder deaktivierte Benutzer verlieren ihre
+            // Sitzung sofort (nicht erst nach Ablauf des gleitenden 8-Stunden-Cookies).
+            OnValidatePrincipal = async context =>
+            {
+                var idClaim = context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var users = context.HttpContext.RequestServices.GetRequiredService<UserService>();
+                if (!int.TryParse(idClaim, out var userId) || !await users.IsActiveAsync(userId))
+                {
+                    context.RejectPrincipal();
+                    await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                }
+            },
+        };
     });
 builder.Services.AddAuthorization();
 builder.Services.AddCascadingAuthenticationState();
@@ -73,12 +96,22 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
-// Logout-Endpunkt (Cookie löschen und zur Login-Seite umleiten).
-app.MapPost("/logout", async (HttpContext context) =>
+// Logout-Endpunkt (Cookie löschen und zur Login-Seite umleiten). Antiforgery wird explizit
+// validiert; das Token liefert das Logout-Formular im Layout (<AntiforgeryToken />).
+app.MapPost("/logout", async (HttpContext context, IAntiforgery antiforgery) =>
 {
+    try
+    {
+        await antiforgery.ValidateRequestAsync(context);
+    }
+    catch (AntiforgeryValidationException)
+    {
+        return Results.BadRequest();
+    }
+
     await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
     return Results.Redirect("/login");
-}).DisableAntiforgery();
+});
 
 // CSV-Export der Inventarliste (nur für angemeldete Benutzer).
 app.MapGet("/export/inventory.csv", async (ExportService export, int? category, int? location, bool? active) =>

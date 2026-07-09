@@ -10,80 +10,49 @@ namespace FireAsset.Services;
 /// - Folgeaufgabe    = Erledigt-Datum + Rhythmus (Monate).
 /// - Liegt die berechnete Fälligkeit nach dem Ende-Datum des Artikels, wird keine Aufgabe angelegt.
 /// - Intervalle ohne hinterlegtes Formular werden übersprungen.
+///
+/// Alle Methoden arbeiten auf einem vom Aufrufer verwalteten <see cref="AppDbContext"/> und
+/// speichern selbst nicht – so bleiben Artikel-/Prüfungs-Schreibvorgänge atomar.
 /// </summary>
 public class TaskGenerationService
 {
-    private readonly IDbContextFactory<AppDbContext> _factory;
-
-    public TaskGenerationService(IDbContextFactory<AppDbContext> factory)
-    {
-        _factory = factory;
-    }
-
     /// <summary>
-    /// Legt beim Anlegen eines Artikels für alle aktiven Intervalle der Kategorie Aufgaben an.
+    /// Fügt für alle aktiven Intervalle der Kategorie des Artikels Aufgaben hinzu (ohne Save).
     /// Gibt Meldungen zu übersprungenen Intervallen zurück.
     /// </summary>
-    public async Task<List<string>> GenerateInitialTasksAsync(int articleId)
+    public async Task<List<string>> AddInitialTasksAsync(AppDbContext db, Article article)
     {
-        await using var db = await _factory.CreateDbContextAsync();
         var messages = new List<string>();
-
-        var article = await db.Articles.FirstOrDefaultAsync(a => a.Id == articleId);
-        if (article is null) return messages;
-
         var intervals = await db.InspectionIntervals
             .Where(i => i.CategoryId == article.CategoryId && i.IsActive)
             .ToListAsync();
 
         foreach (var interval in intervals)
         {
-            if (interval.FormId is null)
+            var message = AddTask(db, article, interval);
+            if (message is not null)
             {
-                messages.Add($"Intervall „{interval.Name}“ übersprungen: kein Formular hinterlegt.");
-                continue;
+                messages.Add(message);
             }
-
-            var dueDate = article.AcquisitionDate.AddMonths(interval.IntervalMonths);
-            if (article.EndDate is DateTime end && dueDate.Date > end.Date)
-            {
-                messages.Add($"Keine Aufgabe für „{interval.Name}“ erstellt: Fälligkeitsdatum " +
-                             $"({dueDate:dd.MM.yyyy}) liegt nach dem Ende-Datum des Artikels ({end:dd.MM.yyyy}).");
-                continue;
-            }
-
-            db.InspectionTasks.Add(new InspectionTask
-            {
-                ArticleId = article.Id,
-                IntervalId = interval.Id,
-                FormId = interval.FormId.Value,
-                DueDate = dueDate,
-                Status = Data.Entities.TaskStatus.Neu,
-                IsManual = false,
-                CreatedAt = DateTime.UtcNow,
-            });
         }
-
-        await db.SaveChangesAsync();
         return messages;
     }
 
     /// <summary>
-    /// Legt nach Abschluss einer intervallbasierten Aufgabe die Folgeaufgabe an.
-    /// Gibt eine Meldung zurück, falls keine Folgeaufgabe erstellt wurde (Ende-Datum überschritten).
+    /// Fügt nach Abschluss einer intervallbasierten Aufgabe die Folgeaufgabe hinzu (ohne Save).
+    /// <paramref name="task"/> muss mit geladenem Intervall und Artikel übergeben werden.
+    /// Gibt eine Meldung zurück, falls keine Folgeaufgabe erstellt wurde.
     /// </summary>
-    public async Task<string?> GenerateFollowUpAsync(int completedTaskId, DateTime completedDate)
+    public string? AddFollowUpTask(AppDbContext db, InspectionTask task, DateTime completedDate)
     {
-        await using var db = await _factory.CreateDbContextAsync();
-        var task = await db.InspectionTasks
-            .Include(t => t.Interval)
-            .Include(t => t.Article)
-            .FirstOrDefaultAsync(t => t.Id == completedTaskId);
-
-        // Nur für intervallbasierte Aufgaben mit aktivem Intervall.
-        if (task?.Interval is null || !task.Interval.IsActive || task.Interval.FormId is null)
+        if (task.Interval is null)
         {
-            return null;
+            return null; // manuelle Aufgabe – keine Folge
+        }
+        if (!task.Interval.IsActive || task.Interval.FormId is null)
+        {
+            return $"Keine Folgeaufgabe erstellt: Das Intervall „{task.Interval.Name}“ ist deaktiviert " +
+                   "oder hat kein Formular – die Prüfkette endet hier.";
         }
 
         var dueDate = completedDate.AddMonths(task.Interval.IntervalMonths);
@@ -99,11 +68,71 @@ public class TaskGenerationService
             IntervalId = task.IntervalId,
             FormId = task.Interval.FormId.Value,
             DueDate = dueDate,
-            Status = Data.Entities.TaskStatus.Neu,
+            Status = InspectionTaskStatus.Neu,
             IsManual = false,
             CreatedAt = DateTime.UtcNow,
         });
-        await db.SaveChangesAsync();
+        return null;
+    }
+
+    /// <summary>
+    /// Fügt für alle aktiven Artikel der Kategorie eines Intervalls fehlende Aufgaben hinzu (ohne Save),
+    /// z. B. nachdem ein Intervall neu angelegt oder (wieder) mit Formular aktiviert wurde.
+    /// Gibt die Anzahl der erzeugten Aufgaben zurück.
+    /// </summary>
+    public async Task<int> AddMissingTasksForIntervalAsync(AppDbContext db, InspectionInterval interval)
+    {
+        if (!interval.IsActive || interval.FormId is null)
+        {
+            return 0;
+        }
+
+        var articles = await db.Articles
+            .Where(a => a.CategoryId == interval.CategoryId && a.IsActive)
+            .ToListAsync();
+        var articleIdsWithOpenTask = await db.InspectionTasks
+            .Where(t => t.IntervalId == interval.Id && t.Status != InspectionTaskStatus.Erledigt)
+            .Select(t => t.ArticleId)
+            .Distinct()
+            .ToListAsync();
+
+        var created = 0;
+        foreach (var article in articles.Where(a => !articleIdsWithOpenTask.Contains(a.Id)))
+        {
+            if (AddTask(db, article, interval) is null)
+            {
+                created++;
+            }
+        }
+        return created;
+    }
+
+    /// <summary>Fügt eine einzelne Aufgabe hinzu; gibt bei Nichtanlage die Begründung zurück.</summary>
+    private static string? AddTask(AppDbContext db, Article article, InspectionInterval interval)
+    {
+        if (interval.FormId is null)
+        {
+            return $"Intervall „{interval.Name}“ übersprungen: kein Formular hinterlegt.";
+        }
+
+        var dueDate = article.AcquisitionDate.AddMonths(interval.IntervalMonths);
+        if (article.EndDate is DateTime end && dueDate.Date > end.Date)
+        {
+            return $"Keine Aufgabe für „{interval.Name}“ erstellt: Fälligkeitsdatum " +
+                   $"({dueDate:dd.MM.yyyy}) liegt nach dem Ende-Datum des Artikels ({end:dd.MM.yyyy}).";
+        }
+
+        db.InspectionTasks.Add(new InspectionTask
+        {
+            // Navigation statt ArticleId: funktioniert auch für noch nicht gespeicherte Artikel.
+            Article = article,
+            IntervalId = interval.Id,
+            FormId = interval.FormId.Value,
+            DueDate = dueDate,
+            Status = InspectionTaskStatus.Neu,
+            IsManual = false,
+            CreatedAt = DateTime.UtcNow,
+        });
         return null;
     }
 }

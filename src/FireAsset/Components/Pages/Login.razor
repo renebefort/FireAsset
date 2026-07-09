@@ -5,6 +5,7 @@
 @using Microsoft.AspNetCore.Authentication
 @using Microsoft.AspNetCore.Authentication.Cookies
 @inject UserService UserService
+@inject LoginThrottleService LoginThrottle
 @inject NavigationManager Navigation
 
 <PageTitle>Anmelden · Asset Manager</PageTitle>
@@ -39,22 +40,34 @@
     [CascadingParameter]
     private HttpContext HttpContext { get; set; } = default!;
 
+    // Kein Property-Initializer (BL0008): wird in OnInitialized gesetzt, falls kein Formpost vorliegt.
     [SupplyParameterFromForm]
-    private LoginModel Input { get; set; } = new();
+    private LoginModel Input { get; set; } = default!;
 
     [SupplyParameterFromQuery]
     private string? ReturnUrl { get; set; }
 
     private string? _errorMessage;
 
+    protected override void OnInitialized() => Input ??= new LoginModel();
+
     private async Task LoginUser()
     {
+        if (LoginThrottle.GetLockoutRemaining(Input.Email) is TimeSpan remaining)
+        {
+            _errorMessage = "Zu viele fehlgeschlagene Anmeldeversuche. " +
+                            $"Bitte in {Math.Ceiling(remaining.TotalMinutes)} Minute(n) erneut versuchen.";
+            return;
+        }
+
         var user = await UserService.ValidateCredentialsAsync(Input.Email, Input.Password);
         if (user is null)
         {
+            LoginThrottle.RegisterFailure(Input.Email);
             _errorMessage = "E-Mail oder Passwort ist ungültig.";
             return;
         }
+        LoginThrottle.RegisterSuccess(Input.Email);
 
         var claims = new List<Claim>
         {
@@ -68,8 +81,22 @@
 
         await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
 
-        var target = string.IsNullOrWhiteSpace(ReturnUrl) ? "/" : $"/{ReturnUrl.TrimStart('/')}";
-        Navigation.NavigateTo(target);
+        Navigation.NavigateTo(GetSafeReturnUrl(ReturnUrl));
+    }
+
+    /// <summary>
+    /// Lässt nur lokale relative Ziele zu (kein Open Redirect über "//host", "/\host" oder
+    /// absolute URLs mit Schema).
+    /// </summary>
+    private static string GetSafeReturnUrl(string? returnUrl)
+    {
+        if (string.IsNullOrWhiteSpace(returnUrl)) return "/";
+        var trimmed = returnUrl.TrimStart('/', '\\', ' ');
+        if (trimmed.Length == 0 || trimmed.Contains('\\') || trimmed.Contains("//") || trimmed.Contains(':'))
+        {
+            return "/";
+        }
+        return "/" + trimmed;
     }
 
     private sealed class LoginModel

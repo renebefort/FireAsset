@@ -11,11 +11,11 @@
     <RadzenButton Icon="add" Text="Neuer Benutzer" ButtonStyle="ButtonStyle.Primary" Click="() => OpenEditor(null)" />
 </RadzenStack>
 
-<RadzenDataGrid @ref="_grid" Data="@_users" TItem="User" AllowSorting="true"
+<RadzenDataGrid Data="@_users" TItem="User" AllowSorting="true"
                 AllowFiltering="true" FilterMode="FilterMode.Advanced" GridLines="DataGridGridLines.Both" AllowColumnResize="true"
                 AllowColumnPicking="true" AllowPaging="true" PageSize="20"
                 PageSizeOptions="@(new int[] { 10, 20, 50, 100 })" ShowPagingSummary="true"
-                RowDoubleClick="@(args => OpenEditor(args.Data.Id))">
+                RowDoubleClick="@(args => OpenEditor(args.Data!.Id))">
     <Columns>
         <RadzenDataGridColumn TItem="User" Property="LastName" Title="Nachname" />
         <RadzenDataGridColumn TItem="User" Property="FirstName" Title="Vorname" />
@@ -36,7 +36,6 @@
     [CascadingParameter]
     private Task<AuthenticationState>? AuthState { get; set; }
 
-    private RadzenDataGrid<User> _grid = default!;
     private List<User> _users = new();
     private int? _currentUserId;
 
@@ -70,11 +69,18 @@
             Notify("Der aktuell angemeldete Benutzer kann nicht gelöscht werden.");
             return;
         }
-        var confirmed = await Dialogs.Confirm($"Benutzer \"{user.FullName}\" wirklich löschen?", "Löschen bestätigen",
+        var confirmed = await Dialogs.Confirm(
+            $"Benutzer \"{user.FullName}\" wirklich löschen? Bereits erfasste Prüfprotokolle bleiben mit dem Prüfernamen erhalten.",
+            "Löschen bestätigen",
             new ConfirmOptions { OkButtonText = "Löschen", CancelButtonText = "Abbrechen" });
         if (confirmed != true) return;
 
-        await UserService.DeleteAsync(user.Id);
+        var error = await UserService.DeleteAsync(user.Id, _currentUserId);
+        if (error is not null)
+        {
+            Notify(error);
+            return;
+        }
         await Reload();
     }
 

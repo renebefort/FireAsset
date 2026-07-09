@@ -11,7 +11,7 @@
     <RadzenButton Icon="add" Text="Neue Kategorie" ButtonStyle="ButtonStyle.Primary" Click="() => OpenCategory(null)" />
 </RadzenStack>
 
-<RadzenDataGrid @ref="_catGrid" Data="@_categories" TItem="Category" AllowSorting="true"
+<RadzenDataGrid Data="@_categories" TItem="Category" AllowSorting="true"
                 AllowFiltering="true" FilterMode="FilterMode.Advanced" GridLines="DataGridGridLines.Both"
                 AllowPaging="true" PageSize="15" PageSizeOptions="@(new int[] { 10, 15, 30, 50 })" ShowPagingSummary="true"
                 SelectionMode="DataGridSelectionMode.Single" @bind-Value="_selectedCategories" RowSelect="OnCategorySelect">
@@ -37,11 +37,11 @@
 {
     <RadzenCard class="rz-mt-4">
         <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center" class="rz-mb-3">
-            <RadzenText TextStyle="TextStyle.H6" class="rz-my-0">Intervalle für „@_selectedCategory.Name"</RadzenText>
+            <RadzenText TextStyle="TextStyle.H6" class="rz-my-0">Intervalle für „@(_selectedCategory.Name)“</RadzenText>
             <RadzenButton Icon="add" Text="Neues Intervall" Size="ButtonSize.Small" Click="() => OpenInterval(null)" />
         </RadzenStack>
 
-        <RadzenDataGrid @ref="_intGrid" Data="@_intervals" TItem="InspectionInterval" GridLines="DataGridGridLines.Both">
+        <RadzenDataGrid Data="@_intervals" TItem="InspectionInterval" GridLines="DataGridGridLines.Both">
             <Columns>
                 <RadzenDataGridColumn TItem="InspectionInterval" Property="Name" Title="Name" />
                 <RadzenDataGridColumn TItem="InspectionInterval" Property="IntervalMonths" Title="Rhythmus (Monate)" Width="170px" />
@@ -63,9 +63,6 @@
 }
 
 @code {
-    private RadzenDataGrid<Category> _catGrid = default!;
-    private RadzenDataGrid<InspectionInterval> _intGrid = default!;
-
     private List<Category> _categories = new();
     private IList<Category> _selectedCategories = new List<Category>();
     private Category? _selectedCategory;
@@ -96,7 +93,9 @@
 
     private async Task DeleteCategory(Category cat)
     {
-        var confirmed = await Dialogs.Confirm($"Kategorie \"{cat.Name}\" wirklich löschen? Zugehörige Intervalle werden mit entfernt.",
+        var confirmed = await Dialogs.Confirm(
+            $"Kategorie \"{cat.Name}\" wirklich löschen? Zugehörige Intervalle werden mit entfernt; " +
+            "offene Aufgaben verlieren ihre Intervall-Zuordnung.",
             "Löschen bestätigen", new ConfirmOptions { OkButtonText = "Löschen", CancelButtonText = "Abbrechen" });
         if (confirmed != true) return;
 
@@ -139,7 +138,9 @@
 
     private async Task DeleteInterval(InspectionInterval iv)
     {
-        var confirmed = await Dialogs.Confirm($"Intervall \"{iv.Name}\" wirklich löschen?", "Löschen bestätigen",
+        var confirmed = await Dialogs.Confirm(
+            $"Intervall \"{iv.Name}\" wirklich löschen? Offene Aufgaben verlieren ihre Intervall-Zuordnung.",
+            "Löschen bestätigen",
             new ConfirmOptions { OkButtonText = "Löschen", CancelButtonText = "Abbrechen" });
         if (confirmed != true) return;
 

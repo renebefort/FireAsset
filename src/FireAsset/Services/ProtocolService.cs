@@ -20,6 +20,7 @@ public class ProtocolService
     public record ProtocolListItem(
         int Id,
         DateTime CreatedAt,
+        DateTime CompletedDate,
         int ArticleId,
         string ArticleIdentification,
         string? CategoryName,
@@ -40,6 +41,7 @@ public class ProtocolService
             .Select(p => new ProtocolListItem(
                 p.Id,
                 p.CreatedAt,
+                p.CompletedDate,
                 p.ArticleId,
                 p.Article.Identification,
                 p.Article.Category != null ? p.Article.Category.Name : null,
@@ -47,7 +49,10 @@ public class ProtocolService
                 p.FormVersion.VersionNumber,
                 p.Result,
                 p.IsUnplanned,
-                p.CreatedByUser != null ? p.CreatedByUser.FirstName + " " + p.CreatedByUser.LastName : null))
+                // Snapshot-Name bleibt auch nach Benutzer-Löschung erhalten.
+                p.CreatedByUserName ?? (p.CreatedByUser != null
+                    ? p.CreatedByUser.FirstName + " " + p.CreatedByUser.LastName
+                    : null)))
             .ToListAsync();
     }
 

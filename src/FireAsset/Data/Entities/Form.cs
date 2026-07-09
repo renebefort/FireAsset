@@ -14,6 +14,9 @@ public class Form
 
     public bool IsActive { get; set; } = true;
 
+    /// <summary>Optimistisches Concurrency-Token (wird bei jeder Änderung erhöht).</summary>
+    public int Version { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     /// <summary>Verweis auf die aktuell gültige Version des Formulars.</summary>

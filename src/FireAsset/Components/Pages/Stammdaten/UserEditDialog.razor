@@ -30,7 +30,7 @@
 
     <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem">
         <RadzenButton Text="Abbrechen" ButtonStyle="ButtonStyle.Light" Click="() => Dialogs.Close(false)" />
-        <RadzenButton Text="Speichern" ButtonStyle="ButtonStyle.Primary" Icon="save" Click="Save" />
+        <RadzenButton Text="Speichern" ButtonStyle="ButtonStyle.Primary" Icon="save" Click="Save" Disabled="@_saving" />
     </RadzenStack>
 </RadzenStack>
 
@@ -40,6 +40,7 @@
     private User _user = new() { IsActive = true };
     private string _password = string.Empty;
     private bool _isNew = true;
+    private bool _saving;
 
     protected override async Task OnInitializedAsync()
     {
@@ -56,6 +57,7 @@
 
     private async Task Save()
     {
+        if (_saving) return;
         if (string.IsNullOrWhiteSpace(_user.FirstName) || string.IsNullOrWhiteSpace(_user.LastName))
         {
             Notify("Vor- und Nachname sind erforderlich.");
@@ -76,16 +78,29 @@
             Notify("Für einen neuen Benutzer ist ein Passwort erforderlich.");
             return;
         }
+        if (!string.IsNullOrWhiteSpace(_password) && _password.Length < UserService.MinPasswordLength)
+        {
+            Notify(UserService.PasswordPolicyMessage);
+            return;
+        }
 
-        if (_isNew)
+        _saving = true;
+        try
         {
-            await UserService.CreateAsync(_user, _password);
+            var error = _isNew
+                ? await UserService.CreateAsync(_user, _password)
+                : await UserService.UpdateAsync(_user, string.IsNullOrWhiteSpace(_password) ? null : _password);
+            if (error is not null)
+            {
+                Notify(error);
+                return;
+            }
+            Dialogs.Close(true);
         }
-        else
+        finally
         {
-            await UserService.UpdateAsync(_user, string.IsNullOrWhiteSpace(_password) ? null : _password);
+            _saving = false;
         }
-        Dialogs.Close(true);
     }
 
     private void Notify(string message) =>

@@ -25,11 +25,11 @@
     </RadzenStack>
 </RadzenCard>
 
-<RadzenDataGrid @ref="_grid" Data="@_articles" TItem="Article" AllowSorting="true"
+<RadzenDataGrid Data="@_articles" TItem="Article" AllowSorting="true"
                 AllowFiltering="true" FilterMode="FilterMode.Advanced" GridLines="DataGridGridLines.Both" AllowColumnResize="true"
                 AllowColumnPicking="true" AllowPaging="true" PageSize="20"
                 PageSizeOptions="@(new int[] { 10, 20, 50, 100 })" ShowPagingSummary="true"
-                RowDoubleClick="@(args => OpenEditor(args.Data.Id))">
+                RowDoubleClick="@(args => OpenEditor(args.Data!.Id))">
     <Columns>
         <RadzenDataGridColumn TItem="Article" Property="Identification" Title="Identifikation" />
         <RadzenDataGridColumn TItem="Article" Property="Barcode" Title="Barcode" Width="130px" />
@@ -65,7 +65,6 @@
     [CascadingParameter]
     private Task<AuthenticationState>? AuthState { get; set; }
 
-    private RadzenDataGrid<Article> _grid = default!;
     private List<Article> _articles = new();
     private string _searchBarcode = string.Empty;
     private RadzenTextBox? _searchBox;
@@ -118,7 +117,7 @@
     private async Task OpenLocationChange()
     {
         var result = await Dialogs.OpenAsync<LocationChangeDialog>("Standortwechsel",
-            new Dictionary<string, object?>(),
+            new Dictionary<string, object?> { ["UserId"] = _userId },
             new DialogOptions { Width = "500px", Resizable = false, Draggable = true });
         if (result is true) await Reload();
     }

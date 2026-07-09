@@ -32,8 +32,10 @@ public class AppDbContext : DbContext
         {
             e.Property(u => u.FirstName).HasMaxLength(100).IsRequired();
             e.Property(u => u.LastName).HasMaxLength(100).IsRequired();
-            e.Property(u => u.Email).HasMaxLength(256).IsRequired();
+            // NOCASE: E-Mail-Vergleiche und der Unique-Index arbeiten case-insensitiv.
+            e.Property(u => u.Email).HasMaxLength(256).IsRequired().UseCollation("NOCASE");
             e.Property(u => u.PasswordHash).IsRequired();
+            e.Property(u => u.Version).IsConcurrencyToken();
             e.HasIndex(u => u.Email).IsUnique();
             e.Ignore(u => u.FullName);
         });
@@ -44,7 +46,8 @@ public class AppDbContext : DbContext
             e.Property(l => l.Description).HasMaxLength(1000);
             e.Property(l => l.Barcode).HasMaxLength(100);
             e.Property(l => l.Icon).HasMaxLength(50);
-            e.HasIndex(l => l.Barcode).IsUnique().HasFilter("[Barcode] IS NOT NULL");
+            e.Property(l => l.Version).IsConcurrencyToken();
+            e.HasIndex(l => l.Barcode).IsUnique().HasFilter("\"Barcode\" IS NOT NULL");
             e.HasOne(l => l.ParentLocation)
                 .WithMany(l => l.Children)
                 .HasForeignKey(l => l.ParentLocationId)
@@ -55,12 +58,14 @@ public class AppDbContext : DbContext
         {
             e.Property(c => c.Name).HasMaxLength(200).IsRequired();
             e.Property(c => c.Description).HasMaxLength(1000);
-            e.HasIndex(c => c.Name);
+            e.Property(c => c.Version).IsConcurrencyToken();
+            e.HasIndex(c => c.Name).IsUnique();
         });
 
         modelBuilder.Entity<InspectionInterval>(e =>
         {
             e.Property(i => i.Name).HasMaxLength(200).IsRequired();
+            e.Property(i => i.Version).IsConcurrencyToken();
             e.HasOne(i => i.Category)
                 .WithMany(c => c.Intervals)
                 .HasForeignKey(i => i.CategoryId)
@@ -75,6 +80,7 @@ public class AppDbContext : DbContext
         {
             e.Property(f => f.Name).HasMaxLength(200).IsRequired();
             e.Property(f => f.Description).HasMaxLength(1000);
+            e.Property(f => f.Version).IsConcurrencyToken();
             // Aktuelle Version: separate, optionale Beziehung (verhindert Zyklus-Kaskaden).
             e.HasOne(f => f.CurrentVersion)
                 .WithMany()
@@ -119,7 +125,8 @@ public class AppDbContext : DbContext
             e.Property(a => a.LegalBasis).HasMaxLength(300);
             e.Property(a => a.Description).HasMaxLength(2000);
             e.Property(a => a.CurrentInspectionStatus).HasConversion<int>();
-            e.HasIndex(a => a.Barcode).IsUnique().HasFilter("[Barcode] IS NOT NULL");
+            e.Property(a => a.Version).IsConcurrencyToken();
+            e.HasIndex(a => a.Barcode).IsUnique().HasFilter("\"Barcode\" IS NOT NULL");
             e.HasIndex(a => a.InventoryNumber);
             e.HasOne(a => a.Category)
                 .WithMany(c => c.Articles)
@@ -161,10 +168,13 @@ public class AppDbContext : DbContext
         {
             e.Property(p => p.Result).HasConversion<int>();
             e.Property(p => p.Notes).HasMaxLength(4000);
+            e.Property(p => p.CreatedByUserName).HasMaxLength(201);
+            // Restrict: Prüfprotokolle sind Nachweisdokumente und dürfen nicht durch
+            // Artikel-Löschung kaskadiert vernichtet werden (Absicherung zusätzlich zum Service-Check).
             e.HasOne(p => p.Article)
                 .WithMany(a => a.Protocols)
                 .HasForeignKey(p => p.ArticleId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.Restrict);
             e.HasOne(p => p.Task)
                 .WithMany(t => t.Protocols)
                 .HasForeignKey(p => p.TaskId)
@@ -182,6 +192,8 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<ProtocolFieldValue>(e =>
         {
             e.Property(v => v.Value).HasMaxLength(4000);
+            // Verhindert doppelte Werte für dasselbe Feld innerhalb eines Protokolls (Doppel-Submit).
+            e.HasIndex(v => new { v.ProtocolId, v.FormFieldId }).IsUnique();
             e.HasOne(v => v.Protocol)
                 .WithMany(p => p.FieldValues)
                 .HasForeignKey(v => v.ProtocolId)

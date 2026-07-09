@@ -119,7 +119,7 @@ else
 
         <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem">
             <RadzenButton Text="Abbrechen" ButtonStyle="ButtonStyle.Light" Click="() => Dialogs.Close(false)" />
-            <RadzenButton Text="Speichern" ButtonStyle="ButtonStyle.Primary" Icon="save" Click="Save" />
+            <RadzenButton Text="Speichern" ButtonStyle="ButtonStyle.Primary" Icon="save" Click="Save" Disabled="@_saving" />
         </RadzenStack>
     </RadzenStack>
 }
@@ -133,6 +133,7 @@ else
     [Parameter] public bool Unplanned { get; set; }
     [Parameter] public int? UserId { get; set; }
 
+    private bool _saving;
     private InspectionService.CaptureModel? _model;
     private List<FieldEntry> _entries = new();
     private bool _showLast;
@@ -181,7 +182,7 @@ else
 
     private async Task Save()
     {
-        if (_model is null) return;
+        if (_saving || _model is null) return;
         if (_result is null)
         {
             Notify("Bitte ein Prüfergebnis wählen.");
@@ -190,25 +191,42 @@ else
 
         var values = _entries.ToDictionary(e => e.Field.Id, e => e.ToStringValue());
 
-        if (Unplanned)
+        _saving = true;
+        try
         {
-            await InspectionService.ExecuteUnplannedAsync(ArticleId, _model.FormVersionId, values, _result.Value, _notes, UserId);
-        }
-        else
-        {
-            if (_dueDate is DateTime d && d != DueDateParam)
+            InspectionService.ExecuteResult result;
+            if (Unplanned)
             {
-                await TaskService.UpdateDueDateAsync(TaskId!.Value, d);
+                result = await InspectionService.ExecuteUnplannedAsync(ArticleId, _model.FormVersionId, values, _result.Value, _notes, UserId);
             }
-            var completed = DateTime.Now;
-            var followUpMsg = await InspectionService.ExecuteTaskAsync(TaskId!.Value, _model.FormVersionId, values, _result.Value, _notes, completed, UserId);
-            if (followUpMsg is not null)
+            else
             {
-                Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Info, Summary = "Folgeaufgabe", Detail = followUpMsg, Duration = 8000 });
+                // Geändertes Fälligkeitsdatum wird zusammen mit dem Abschluss atomar gespeichert.
+                var newDueDate = _dueDate is DateTime d && d != DueDateParam ? d : (DateTime?)null;
+                result = await InspectionService.ExecuteTaskAsync(TaskId!.Value, _model.FormVersionId, values,
+                    _result.Value, _notes, DateTime.Now, newDueDate, UserId);
             }
-        }
 
-        Dialogs.Close(true);
+            if (!result.Ok)
+            {
+                Notify(result.Error ?? "Die Prüfung konnte nicht gespeichert werden.");
+                // Bei bereits abgeschlossener Aufgabe Dialog schließen, damit die Liste aktualisiert wird.
+                if (result.Error is not null && result.Error.StartsWith("Die Aufgabe wurde bereits abgeschlossen"))
+                {
+                    Dialogs.Close(true);
+                }
+                return;
+            }
+            if (result.FollowUpInfo is not null)
+            {
+                Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Info, Summary = "Folgeaufgabe", Detail = result.FollowUpInfo, Duration = 8000 });
+            }
+            Dialogs.Close(true);
+        }
+        finally
+        {
+            _saving = false;
+        }
     }
 
     private static string FormatLast(FieldType type, string value)

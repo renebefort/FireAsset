@@ -20,7 +20,7 @@ public class TaskService
     public record TaskListItem(
         int TaskId,
         DateTime DueDate,
-        Data.Entities.TaskStatus Status,
+        InspectionTaskStatus Status,
         bool IsManual,
         int ArticleId,
         int FormId,
@@ -45,8 +45,12 @@ public class TaskService
 
         if (!includeDone)
         {
-            query = query.Where(t => t.Status != Data.Entities.TaskStatus.Erledigt);
+            query = query.Where(t => t.Status != InspectionTaskStatus.Erledigt);
         }
+
+        // Offene Aufgaben deaktivierter Artikel ausblenden (erscheinen bei Reaktivierung wieder);
+        // die erledigte Historie bleibt sichtbar.
+        query = query.Where(t => t.Article.IsActive || t.Status == InspectionTaskStatus.Erledigt);
 
         return await query
             .OrderBy(t => t.DueDate)
@@ -72,7 +76,7 @@ public class TaskService
     {
         await using var db = await _factory.CreateDbContextAsync();
         var task = await db.InspectionTasks.FindAsync(taskId);
-        if (task is null || task.Status == Data.Entities.TaskStatus.Erledigt) return;
+        if (task is null || task.Status == InspectionTaskStatus.Erledigt) return;
         task.DueDate = dueDate;
         await db.SaveChangesAsync();
     }
@@ -87,7 +91,7 @@ public class TaskService
             IntervalId = null,
             FormId = formId,
             DueDate = dueDate,
-            Status = Data.Entities.TaskStatus.Neu,
+            Status = InspectionTaskStatus.Neu,
             IsManual = true,
             CreatedAt = DateTime.UtcNow,
         });

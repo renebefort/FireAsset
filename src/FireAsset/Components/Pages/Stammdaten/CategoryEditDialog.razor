@@ -19,13 +19,14 @@
 
     <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem">
         <RadzenButton Text="Abbrechen" ButtonStyle="ButtonStyle.Light" Click="() => Dialogs.Close(false)" />
-        <RadzenButton Text="Speichern" ButtonStyle="ButtonStyle.Primary" Icon="save" Click="Save" />
+        <RadzenButton Text="Speichern" ButtonStyle="ButtonStyle.Primary" Icon="save" Click="Save" Disabled="@_saving" />
     </RadzenStack>
 </RadzenStack>
 
 @code {
     [Parameter] public int? CategoryId { get; set; }
 
+    private bool _saving;
     private Category _category = new() { IsActive = true };
 
     protected override async Task OnInitializedAsync()
@@ -40,21 +41,30 @@
 
     private async Task Save()
     {
+        if (_saving) return;
         if (string.IsNullOrWhiteSpace(_category.Name))
         {
             Notify("Der Name ist erforderlich.");
             return;
         }
 
-        if (_category.Id == 0)
+        _saving = true;
+        try
         {
-            await CategoryService.CreateCategoryAsync(_category);
+            var error = _category.Id == 0
+                ? await CategoryService.CreateCategoryAsync(_category)
+                : await CategoryService.UpdateCategoryAsync(_category);
+            if (error is not null)
+            {
+                Notify(error);
+                return;
+            }
+            Dialogs.Close(true);
         }
-        else
+        finally
         {
-            await CategoryService.UpdateCategoryAsync(_category);
+            _saving = false;
         }
-        Dialogs.Close(true);
     }
 
     private void Notify(string message) =>

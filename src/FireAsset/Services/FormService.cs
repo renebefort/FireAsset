@@ -55,6 +55,7 @@ public class FormService
             Name = form.Name,
             Description = form.Description,
             IsActive = form.IsActive,
+            Version = form.Version,
             Fields = form.CurrentVersion is null
                 ? new()
                 : form.CurrentVersion.Fields.OrderBy(f => f.SortOrder)
@@ -74,13 +75,14 @@ public class FormService
     }
 
     /// <summary>
-    /// Speichert das Bearbeitungsmodell. Neu = Formular + Version 1. Bestehend = Metadaten
+    /// Speichert das Bearbeitungsmodell (atomar). Neu = Formular + Version 1. Bestehend = Metadaten
     /// aktualisieren und bei geänderter Feldstruktur eine neue Version anlegen.
-    /// Gibt die Id des Formulars zurück.
+    /// Gibt bei Blockade eine Fehlermeldung zurück, sonst null.
     /// </summary>
-    public async Task<int> SaveAsync(FormEditModel model, int? userId)
+    public async Task<string?> SaveAsync(FormEditModel model, int? userId)
     {
         await using var db = await _factory.CreateDbContextAsync();
+        await using var tx = await db.Database.BeginTransactionAsync();
 
         if (model.FormId is null)
         {
@@ -100,32 +102,49 @@ public class FormService
 
             form.CurrentVersionId = version.Id;
             await db.SaveChangesAsync();
-            return form.Id;
+            await tx.CommitAsync();
+            return null;
         }
 
         var existing = await db.Forms
             .Include(f => f.CurrentVersion!).ThenInclude(v => v.Fields)
             .FirstOrDefaultAsync(f => f.Id == model.FormId);
-        if (existing is null) return model.FormId.Value;
+        if (existing is null) return "Das Formular existiert nicht mehr.";
+
+        db.Entry(existing).Property(f => f.Version).OriginalValue = model.Version;
+        existing.Version = model.Version + 1;
 
         existing.Name = model.Name.Trim();
         existing.Description = string.IsNullOrWhiteSpace(model.Description) ? null : model.Description;
         existing.IsActive = model.IsActive;
 
-        if (FieldsChanged(existing.CurrentVersion, model.Fields))
+        try
         {
-            var nextNumber = await db.FormVersions
-                .Where(v => v.FormId == existing.Id)
-                .MaxAsync(v => (int?)v.VersionNumber) ?? 0;
-            var version = BuildVersion(existing.Id, nextNumber + 1, model.Fields, userId);
-            db.FormVersions.Add(version);
+            if (FieldsChanged(existing.CurrentVersion, model.Fields))
+            {
+                var nextNumber = await db.FormVersions
+                    .Where(v => v.FormId == existing.Id)
+                    .MaxAsync(v => (int?)v.VersionNumber) ?? 0;
+                var version = BuildVersion(existing.Id, nextNumber + 1, model.Fields, userId);
+                db.FormVersions.Add(version);
+                await db.SaveChangesAsync();
+
+                existing.CurrentVersionId = version.Id;
+            }
+
             await db.SaveChangesAsync();
-
-            existing.CurrentVersionId = version.Id;
+            await tx.CommitAsync();
         }
-
-        await db.SaveChangesAsync();
-        return existing.Id;
+        catch (DbUpdateConcurrencyException)
+        {
+            return DbErrors.ConcurrencyMessage;
+        }
+        catch (DbUpdateException ex) when (DbErrors.IsUniqueViolation(ex, "FormVersions"))
+        {
+            // Zwei Bearbeiter haben zeitgleich dieselbe Versionsnummer berechnet.
+            return DbErrors.ConcurrencyMessage;
+        }
+        return null;
     }
 
     public async Task<string?> DeleteAsync(int formId)
@@ -135,6 +154,10 @@ public class FormService
         {
             return "Formular ist einem Prüfintervall zugeordnet und kann nicht gelöscht werden.";
         }
+        if (await db.InspectionTasks.AnyAsync(t => t.FormId == formId))
+        {
+            return "Formular wird von Prüfaufgaben verwendet und kann nicht gelöscht werden.";
+        }
         if (await db.InspectionProtocols.AnyAsync(p => p.FormVersion.FormId == formId))
         {
             return "Formular wird von Prüfprotokollen referenziert und kann nicht gelöscht werden.";
@@ -143,11 +166,21 @@ public class FormService
         var form = await db.Forms.FindAsync(formId);
         if (form is not null)
         {
+            await using var tx = await db.Database.BeginTransactionAsync();
             // Aktuelle-Version-Verweis lösen, dann Versionen (Cascade) + Formular entfernen.
             form.CurrentVersionId = null;
             await db.SaveChangesAsync();
             db.Forms.Remove(form);
-            await db.SaveChangesAsync();
+            try
+            {
+                await db.SaveChangesAsync();
+                await tx.CommitAsync();
+            }
+            catch (DbUpdateException)
+            {
+                // Restrict-FK: zwischen Prüfung und Löschung ist eine Referenz entstanden.
+                return "Formular wird inzwischen referenziert und kann nicht gelöscht werden.";
+            }
         }
         return null;
     }

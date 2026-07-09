@@ -30,11 +30,12 @@
 
     <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem">
         <RadzenButton Text="Abbrechen" ButtonStyle="ButtonStyle.Light" Click="() => Dialogs.Close(false)" />
-        <RadzenButton Text="Anlegen" ButtonStyle="ButtonStyle.Primary" Icon="add" Click="Create" />
+        <RadzenButton Text="Anlegen" ButtonStyle="ButtonStyle.Primary" Icon="add" Click="Create" Disabled="@_saving" />
     </RadzenStack>
 </RadzenStack>
 
 @code {
+    private bool _saving;
     private List<Article> _articles = new();
     private List<Form> _forms = new();
     private int? _articleId;
@@ -49,12 +50,22 @@
 
     private async Task Create()
     {
+        if (_saving) return;
         if (_articleId is null || _formId is null)
         {
             Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Warning, Summary = "Hinweis", Detail = "Bitte Artikel und Formular wählen.", Duration = 4000 });
             return;
         }
-        await TaskService.CreateManualTaskAsync(_articleId.Value, _formId.Value, _dueDate);
-        Dialogs.Close(true);
+
+        _saving = true;
+        try
+        {
+            await TaskService.CreateManualTaskAsync(_articleId.Value, _formId.Value, _dueDate);
+            Dialogs.Close(true);
+        }
+        finally
+        {
+            _saving = false;
+        }
     }
 }

@@ -11,11 +11,11 @@
     <RadzenButton Icon="add" Text="Neuer Standort" ButtonStyle="ButtonStyle.Primary" Click="() => OpenEditor(null)" />
 </RadzenStack>
 
-<RadzenDataGrid @ref="_grid" Data="@_locations" TItem="Location" AllowSorting="true"
+<RadzenDataGrid Data="@_locations" TItem="Location" AllowSorting="true"
                 AllowFiltering="true" FilterMode="FilterMode.Advanced" GridLines="DataGridGridLines.Both" AllowColumnResize="true"
                 AllowColumnPicking="true" AllowPaging="true" PageSize="20"
                 PageSizeOptions="@(new int[] { 10, 20, 50, 100 })" ShowPagingSummary="true"
-                RowDoubleClick="@(args => OpenEditor(args.Data.Id))">
+                RowDoubleClick="@(args => OpenEditor(args.Data!.Id))">
     <Columns>
         <RadzenDataGridColumn TItem="Location" Property="Name" Title="Name" />
         <RadzenDataGridColumn TItem="Location" Title="Pfad" Sortable="false">
@@ -52,7 +52,6 @@
         new("place", "Sonstiges"),
     };
 
-    private RadzenDataGrid<Location> _grid = default!;
     private List<Location> _locations = new();
     private Dictionary<int, Location> _byId = new();
 

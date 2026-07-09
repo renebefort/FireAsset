@@ -17,6 +17,9 @@ public class Location
     /// <summary>Icon-Kennung für die Darstellung (z. B. "directory", "truck", "shelf", "room").</summary>
     public string? Icon { get; set; }
 
+    /// <summary>Optimistisches Concurrency-Token (wird bei jeder Änderung erhöht).</summary>
+    public int Version { get; set; }
+
     public int? ParentLocationId { get; set; }
 
     public Location? ParentLocation { get; set; }

@@ -63,7 +63,7 @@
 
     <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem">
         <RadzenButton Text="Abbrechen" ButtonStyle="ButtonStyle.Light" Click="() => Dialogs.Close(false)" />
-        <RadzenButton Text="Speichern" ButtonStyle="ButtonStyle.Primary" Icon="save" Click="Save" />
+        <RadzenButton Text="Speichern" ButtonStyle="ButtonStyle.Primary" Icon="save" Click="Save" Disabled="@_saving" />
     </RadzenStack>
 </RadzenStack>
 
@@ -73,6 +73,7 @@
 
     private record LocationOption(int Id, string Path);
 
+    private bool _saving;
     private Article _article = new() { AcquisitionDate = DateTime.Today, IsActive = true };
     private List<Category> _categories = new();
     private List<LocationOption> _locationOptions = new();
@@ -106,6 +107,7 @@
 
     private async Task Save()
     {
+        if (_saving) return;
         if (string.IsNullOrWhiteSpace(_article.Identification))
         {
             Notify("Die Identifikation / der Name ist erforderlich.");
@@ -127,20 +129,27 @@
         _article.DecommissionDate = _decommissionDate;
         _article.EndDate = _endDate;
 
-        if (_article.Id == 0)
+        _saving = true;
+        try
         {
-            var (_, messages) = await ArticleService.CreateAsync(_article, UserId);
+            var (error, messages) = _article.Id == 0
+                ? await ArticleService.CreateAsync(_article, UserId)
+                : await ArticleService.UpdateAsync(_article, UserId);
+            if (error is not null)
+            {
+                Notify(error);
+                return;
+            }
             foreach (var msg in messages)
             {
                 Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Info, Summary = "Aufgabenanlage", Detail = msg, Duration = 8000 });
             }
+            Dialogs.Close(true);
         }
-        else
+        finally
         {
-            await ArticleService.UpdateAsync(_article, UserId);
+            _saving = false;
         }
-
-        Dialogs.Close(true);
     }
 
     private void Notify(string message) =>

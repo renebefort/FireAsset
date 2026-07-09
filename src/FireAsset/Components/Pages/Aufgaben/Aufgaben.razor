@@ -17,11 +17,11 @@
     </RadzenStack>
 </RadzenStack>
 
-<RadzenDataGrid @ref="_grid" Data="@_tasks" TItem="TaskService.TaskListItem" AllowSorting="true"
+<RadzenDataGrid Data="@_tasks" TItem="TaskService.TaskListItem" AllowSorting="true"
                 AllowFiltering="true" FilterMode="FilterMode.Advanced" GridLines="DataGridGridLines.Both" AllowColumnResize="true"
                 AllowColumnReorder="true" AllowColumnPicking="true" AllowPaging="true" PageSize="25"
                 PageSizeOptions="@(new int[] { 10, 25, 50, 100 })" ShowPagingSummary="true"
-                RowDoubleClick="@(args => Inspect(args.Data))">
+                RowDoubleClick="@(args => Inspect(args.Data!))">
     <Columns>
         <RadzenDataGridColumn TItem="TaskService.TaskListItem" Title="" Width="45px" Sortable="false" Filterable="false" Reorderable="false" Pickable="false" TextAlign="TextAlign.Center">
             <HeaderTemplate>
@@ -42,7 +42,7 @@
         <RadzenDataGridColumn TItem="TaskService.TaskListItem" Property="DueDate" Title="Fälligkeit" Width="160px" SortOrder="SortOrder.Ascending">
             <Template Context="item">
                 <RadzenDatePicker TValue="DateTime" Value="@item.DueDate" DateFormat="dd.MM.yyyy"
-                                  Disabled="@(item.Status == FireAsset.Data.Entities.TaskStatus.Erledigt)"
+                                  Disabled="@(item.Status == InspectionTaskStatus.Erledigt)"
                                   Change="@((DateTime? args) => OnDueChanged(item, args))" Style="width: 140px" />
             </Template>
         </RadzenDataGridColumn>
@@ -55,7 +55,7 @@
         <RadzenDataGridColumn TItem="TaskService.TaskListItem" Context="item" Title="Aktion" Width="110px" Sortable="false" Filterable="false" Reorderable="false" Pickable="false" TextAlign="TextAlign.Center">
             <Template Context="item">
                 <RadzenButton Icon="fact_check" Text="Prüfen" Size="ButtonSize.Small"
-                              Disabled="@(item.Status == FireAsset.Data.Entities.TaskStatus.Erledigt)"
+                              Disabled="@(item.Status == InspectionTaskStatus.Erledigt)"
                               Click="() => Inspect(item)" />
             </Template>
         </RadzenDataGridColumn>
@@ -66,7 +66,6 @@
     [CascadingParameter]
     private Task<AuthenticationState>? AuthState { get; set; }
 
-    private RadzenDataGrid<TaskService.TaskListItem> _grid = default!;
     private List<TaskService.TaskListItem> _tasks = new();
     private HashSet<int> _selectedIds = new();
     private bool _includeDone;
@@ -112,7 +111,7 @@
 
     private async Task Inspect(TaskService.TaskListItem item)
     {
-        if (item.Status == FireAsset.Data.Entities.TaskStatus.Erledigt) return;
+        if (item.Status == InspectionTaskStatus.Erledigt) return;
         var result = await OpenInspection(item);
         if (result is true) await Reload();
     }
@@ -136,7 +135,7 @@
     private async Task ProcessBatch()
     {
         var batch = _tasks.Where(t => _selectedIds.Contains(t.TaskId)
-            && t.Status != FireAsset.Data.Entities.TaskStatus.Erledigt).ToList();
+            && t.Status != InspectionTaskStatus.Erledigt).ToList();
         foreach (var item in batch)
         {
             var result = await OpenInspection(item);
@@ -154,19 +153,19 @@
         if (result is true) await Reload();
     }
 
-    private static string StatusLabel(FireAsset.Data.Entities.TaskStatus s) => s switch
+    private static string StatusLabel(InspectionTaskStatus s) => s switch
     {
-        FireAsset.Data.Entities.TaskStatus.Neu => "Neu",
-        FireAsset.Data.Entities.TaskStatus.InBearbeitung => "In Bearbeitung",
-        FireAsset.Data.Entities.TaskStatus.Erledigt => "Erledigt",
+        InspectionTaskStatus.Neu => "Neu",
+        InspectionTaskStatus.InBearbeitung => "In Bearbeitung",
+        InspectionTaskStatus.Erledigt => "Erledigt",
         _ => s.ToString(),
     };
 
-    private static BadgeStyle StatusBadge(FireAsset.Data.Entities.TaskStatus s) => s switch
+    private static BadgeStyle StatusBadge(InspectionTaskStatus s) => s switch
     {
-        FireAsset.Data.Entities.TaskStatus.Neu => BadgeStyle.Info,
-        FireAsset.Data.Entities.TaskStatus.InBearbeitung => BadgeStyle.Warning,
-        FireAsset.Data.Entities.TaskStatus.Erledigt => BadgeStyle.Success,
+        InspectionTaskStatus.Neu => BadgeStyle.Info,
+        InspectionTaskStatus.InBearbeitung => BadgeStyle.Warning,
+        InspectionTaskStatus.Erledigt => BadgeStyle.Success,
         _ => BadgeStyle.Light,
     };
 }

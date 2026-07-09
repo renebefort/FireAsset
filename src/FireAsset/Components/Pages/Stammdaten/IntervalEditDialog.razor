@@ -40,7 +40,7 @@
 
     <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem">
         <RadzenButton Text="Abbrechen" ButtonStyle="ButtonStyle.Light" Click="() => Dialogs.Close(false)" />
-        <RadzenButton Text="Speichern" ButtonStyle="ButtonStyle.Primary" Icon="save" Click="Save" />
+        <RadzenButton Text="Speichern" ButtonStyle="ButtonStyle.Primary" Icon="save" Click="Save" Disabled="@_saving" />
     </RadzenStack>
 </RadzenStack>
 
@@ -48,6 +48,7 @@
     [Parameter] public int? IntervalId { get; set; }
     [Parameter] public int CategoryId { get; set; }
 
+    private bool _saving;
     private InspectionInterval _interval = new() { IntervalMonths = 12, IsActive = true };
     private List<Form> _forms = new();
     private int? _formId;
@@ -70,6 +71,7 @@
 
     private async Task Save()
     {
+        if (_saving) return;
         if (string.IsNullOrWhiteSpace(_interval.Name))
         {
             Notify("Der Name des Intervalls ist erforderlich.");
@@ -83,16 +85,37 @@
 
         _interval.FormId = _formId;
 
-        if (_interval.Id == 0)
+        _saving = true;
+        try
         {
-            _interval.CategoryId = CategoryId;
-            await CategoryService.CreateIntervalAsync(_interval);
+            if (_interval.Id == 0)
+            {
+                _interval.CategoryId = CategoryId;
+            }
+            var (error, createdTasks) = _interval.Id == 0
+                ? await CategoryService.CreateIntervalAsync(_interval)
+                : await CategoryService.UpdateIntervalAsync(_interval);
+            if (error is not null)
+            {
+                Notify(error);
+                return;
+            }
+            if (createdTasks > 0)
+            {
+                Notifications.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Info,
+                    Summary = "Aufgabenanlage",
+                    Detail = $"{createdTasks} Aufgabe(n) für bestehende Artikel der Kategorie erstellt.",
+                    Duration = 8000,
+                });
+            }
+            Dialogs.Close(true);
         }
-        else
+        finally
         {
-            await CategoryService.UpdateIntervalAsync(_interval);
+            _saving = false;
         }
-        Dialogs.Close(true);
     }
 
     private void Notify(string message) =>

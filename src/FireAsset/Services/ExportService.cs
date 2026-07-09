@@ -69,6 +69,12 @@ public class ExportService
 
     private static string Escape(string value)
     {
+        // Schutz vor CSV-Formel-Injection: führende Formel-Zeichen mit Apostroph neutralisieren,
+        // damit Excel Zellen wie "=HYPERLINK(...)" nicht als Formel ausführt.
+        if (value.Length > 0 && value[0] is '=' or '+' or '-' or '@' or '\t' or '\r')
+        {
+            value = "'" + value;
+        }
         if (value.Contains(';') || value.Contains('"') || value.Contains('\n') || value.Contains('\r'))
         {
             return "\"" + value.Replace("\"", "\"\"") + "\"";

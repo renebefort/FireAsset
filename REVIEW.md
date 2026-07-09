@@ -3,6 +3,15 @@
 Umfassendes Code-Review über Datenschicht, Service-Schicht und UI/Authentifizierung.
 Referenzen im Format `Datei:Zeile`. Einstufung: **Kritisch → Hoch → Mittel → Gering/Hinweis**.
 
+> **Umsetzungsstand (2026-07-10, Branch `dev`):** Alle Punkte wurden behoben – mit zwei
+> bewussten Ausnahmen nach Produktentscheidung:
+> **K1** (Rollenmodell) entfällt: alle Benutzer sind gleichberechtigt (Admin), und
+> **H1** (Admin-Seed-Fallback-Passwort) bleibt wie dokumentiert bestehen.
+> H6 (Login-Drosselung) wurde unabhängig davon umgesetzt.
+> Bewusst offen gelassen (Hinweis-Ebene): Paging der Listen, Zusammenfassen der
+> Dashboard-COUNTs, Barcode-Vorrangregel Artikel vs. Standort.
+> Zeilenangaben unten beziehen sich auf den Review-Stand (Commit `9fd090a`).
+
 ## Gesamtbewertung
 
 FireAsset ist für ein 0.0.1-Release **deutlich über Prototyp-Niveau**: Die schwierigen
