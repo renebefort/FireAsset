@@ -14,6 +14,7 @@
                     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="1rem">
                         <RadzenText TextStyle="TextStyle.Body2" class="rz-my-0">@context.User.Identity?.Name</RadzenText>
                         <form action="logout" method="post" style="margin:0;">
+                            <AntiforgeryToken />
                             <RadzenButton ButtonType="ButtonType.Submit" Text="Abmelden" Icon="logout"
                                           ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" />
                         </form>
@@ -29,14 +30,15 @@
             <RadzenPanelMenuItem Text="Stammdaten" Icon="settings">
                 <RadzenPanelMenuItem Text="Benutzer" Icon="group" Path="stammdaten/benutzer" />
                 <RadzenPanelMenuItem Text="Standorte" Icon="place" Path="stammdaten/standorte" />
-                <RadzenPanelMenuItem Text="Kategorien & Intervalle" Icon="category" Path="stammdaten/kategorien" />
                 <RadzenPanelMenuItem Text="Formulare" Icon="description" Path="stammdaten/formulare" />
+                <RadzenPanelMenuItem Text="Kategorien & Intervalle" Icon="category" Path="stammdaten/kategorien" />
             </RadzenPanelMenuItem>
             <RadzenPanelMenuItem Text="Artikelstamm" Icon="inventory_2" Path="artikel" />
             <RadzenPanelMenuItem Text="Aufgaben" Icon="task_alt" Path="aufgaben" />
             <RadzenPanelMenuItem Text="Protokolle" Icon="fact_check" Path="protokolle" />
             <RadzenPanelMenuItem Text="Export" Icon="file_download" Path="export" />
             <RadzenPanelMenuItem Text="Handbuch" Icon="menu_book" Path="handbuch" />
+            <RadzenPanelMenuItem Text="Changelog" Icon="history" Path="changelog" />
         </RadzenPanelMenu>
     </RadzenSidebar>
 

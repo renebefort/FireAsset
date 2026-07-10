@@ -19,5 +19,8 @@ public class User
 
     public DateTime CreatedAt { get; set; }
 
+    /// <summary>Optimistisches Concurrency-Token (wird bei jeder Änderung erhöht).</summary>
+    public int Version { get; set; }
+
     public string FullName => $"{FirstName} {LastName}".Trim();
 }

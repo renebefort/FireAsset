@@ -28,7 +28,12 @@ public class DashboardService
         var today = DateTime.Today;
         var monthEnd = new DateTime(today.Year, today.Month, 1).AddMonths(1).AddDays(-1);
 
-        var openTasks = db.InspectionTasks.Where(t => t.Status != Data.Entities.TaskStatus.Erledigt);
+        // Deaktivierte Artikel zählen nicht in offene Aufgaben und Statusverteilung
+        // (stillgelegte Geräte sollen die Kennzahlen nicht dauerhaft aufblähen).
+        var openTasks = db.InspectionTasks
+            .Where(t => t.Status != InspectionTaskStatus.Erledigt
+                        && t.Status != InspectionTaskStatus.Stillgelegt
+                        && t.Article.IsActive);
 
         return new Stats(
             ArticlesTotal: await db.Articles.CountAsync(),
@@ -37,10 +42,10 @@ public class DashboardService
             TasksOverdue: await openTasks.CountAsync(t => t.DueDate < today),
             TasksDueThisMonth: await openTasks.CountAsync(t => t.DueDate >= today && t.DueDate <= monthEnd),
             ProtocolsTotal: await db.InspectionProtocols.CountAsync(),
-            StatusBestanden: await db.Articles.CountAsync(a => a.CurrentInspectionStatus == InspectionResult.Bestanden),
-            StatusMangelhaft: await db.Articles.CountAsync(a => a.CurrentInspectionStatus == InspectionResult.Mangelhaft),
-            StatusNichtBestanden: await db.Articles.CountAsync(a => a.CurrentInspectionStatus == InspectionResult.NichtBestanden),
-            StatusOhne: await db.Articles.CountAsync(a => a.CurrentInspectionStatus == null));
+            StatusBestanden: await db.Articles.CountAsync(a => a.IsActive && a.CurrentInspectionStatus == InspectionResult.Bestanden),
+            StatusMangelhaft: await db.Articles.CountAsync(a => a.IsActive && a.CurrentInspectionStatus == InspectionResult.Mangelhaft),
+            StatusNichtBestanden: await db.Articles.CountAsync(a => a.IsActive && a.CurrentInspectionStatus == InspectionResult.NichtBestanden),
+            StatusOhne: await db.Articles.CountAsync(a => a.IsActive && a.CurrentInspectionStatus == null));
     }
 
     public async Task<List<DueTask>> GetUpcomingTasksAsync(int take = 10)
@@ -48,7 +53,9 @@ public class DashboardService
         await using var db = await _factory.CreateDbContextAsync();
         var today = DateTime.Today;
         return await db.InspectionTasks
-            .Where(t => t.Status != Data.Entities.TaskStatus.Erledigt)
+            .Where(t => t.Status != InspectionTaskStatus.Erledigt
+                        && t.Status != InspectionTaskStatus.Stillgelegt
+                        && t.Article.IsActive)
             .OrderBy(t => t.DueDate)
             .Take(take)
             .Select(t => new DueTask(t.Id, t.DueDate, t.Article.Identification, t.Form.Name, t.DueDate < today))

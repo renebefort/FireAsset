@@ -22,7 +22,7 @@ public class InspectionTask
 
     public DateTime DueDate { get; set; }
 
-    public TaskStatus Status { get; set; } = TaskStatus.Neu;
+    public InspectionTaskStatus Status { get; set; } = InspectionTaskStatus.Neu;
 
     public bool IsManual { get; set; }
 

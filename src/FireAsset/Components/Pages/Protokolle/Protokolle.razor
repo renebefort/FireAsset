@@ -7,13 +7,14 @@
 
 <RadzenText TextStyle="TextStyle.H4" class="rz-mb-3">Prüfprotokolle</RadzenText>
 
-<RadzenDataGrid @ref="_grid" Data="@_protocols" TItem="ProtocolService.ProtocolListItem" AllowSorting="true"
+<RadzenDataGrid Data="@_protocols" TItem="ProtocolService.ProtocolListItem" AllowSorting="true"
                 AllowFiltering="true" FilterMode="FilterMode.Advanced" GridLines="DataGridGridLines.Both" AllowColumnResize="true"
                 AllowColumnPicking="true" AllowPaging="true" PageSize="25"
                 PageSizeOptions="@(new int[] { 10, 25, 50, 100 })" ShowPagingSummary="true"
-                RowDoubleClick="@(args => OpenDetail(args.Data.Id))">
+                RowDoubleClick="@(args => OpenDetail(args.Data!.Id))">
     <Columns>
-        <RadzenDataGridColumn TItem="ProtocolService.ProtocolListItem" Property="CreatedAt" Title="Datum" Width="150px" FormatString="{0:dd.MM.yyyy HH:mm}" SortOrder="SortOrder.Descending" />
+        <RadzenDataGridColumn TItem="ProtocolService.ProtocolListItem" Property="CreatedAt" Title="Erfasst am" Width="150px" FormatString="{0:dd.MM.yyyy HH:mm}" SortOrder="SortOrder.Descending" />
+        <RadzenDataGridColumn TItem="ProtocolService.ProtocolListItem" Property="CompletedDate" Title="Prüfdatum" Width="120px" FormatString="{0:dd.MM.yyyy}" />
         <RadzenDataGridColumn TItem="ProtocolService.ProtocolListItem" Property="ArticleIdentification" Title="Artikel" />
         <RadzenDataGridColumn TItem="ProtocolService.ProtocolListItem" Property="CategoryName" Title="Kategorie" Width="150px" />
         <RadzenDataGridColumn TItem="ProtocolService.ProtocolListItem" Property="FormName" Title="Formular" Width="160px">
@@ -37,7 +38,6 @@
 </RadzenDataGrid>
 
 @code {
-    private RadzenDataGrid<ProtocolService.ProtocolListItem> _grid = default!;
     private List<ProtocolService.ProtocolListItem> _protocols = new();
 
     protected override async Task OnInitializedAsync() => await Reload();

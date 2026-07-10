@@ -27,11 +27,17 @@ public class InspectionProtocol
     /// <summary>True, wenn es sich um eine ungeplante manuelle Prüfung handelt.</summary>
     public bool IsUnplanned { get; set; }
 
+    /// <summary>Datum der Prüfungsdurchführung (Basis für die Folgeaufgaben-Berechnung).</summary>
+    public DateTime CompletedDate { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public int? CreatedByUserId { get; set; }
 
     public User? CreatedByUser { get; set; }
+
+    /// <summary>Name des Prüfers zum Zeitpunkt der Prüfung (bleibt auch nach Benutzer-Löschung erhalten).</summary>
+    public string? CreatedByUserName { get; set; }
 
     public ICollection<ProtocolFieldValue> FieldValues { get; set; } = new List<ProtocolFieldValue>();
 }

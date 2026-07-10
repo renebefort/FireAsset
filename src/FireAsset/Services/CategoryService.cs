@@ -10,10 +10,12 @@ namespace FireAsset.Services;
 public class CategoryService
 {
     private readonly IDbContextFactory<AppDbContext> _factory;
+    private readonly TaskGenerationService _taskGeneration;
 
-    public CategoryService(IDbContextFactory<AppDbContext> factory)
+    public CategoryService(IDbContextFactory<AppDbContext> factory, TaskGenerationService taskGeneration)
     {
         _factory = factory;
+        _taskGeneration = taskGeneration;
     }
 
     // --- Kategorien ---
@@ -27,23 +29,49 @@ public class CategoryService
             .ToListAsync();
     }
 
-    public async Task CreateCategoryAsync(Category category)
+    /// <summary>Legt eine Kategorie an. Gibt bei Blockade eine Fehlermeldung zurück, sonst null.</summary>
+    public async Task<string?> CreateCategoryAsync(Category category)
     {
         await using var db = await _factory.CreateDbContextAsync();
+        category.Name = category.Name.Trim();
         db.Categories.Add(category);
-        await db.SaveChangesAsync();
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (DbErrors.IsUniqueViolation(ex, "Categories.Name"))
+        {
+            return "Eine Kategorie mit diesem Namen existiert bereits.";
+        }
+        return null;
     }
 
-    public async Task UpdateCategoryAsync(Category category)
+    /// <summary>Aktualisiert eine Kategorie. Gibt bei Blockade eine Fehlermeldung zurück, sonst null.</summary>
+    public async Task<string?> UpdateCategoryAsync(Category category)
     {
         await using var db = await _factory.CreateDbContextAsync();
         var existing = await db.Categories.FindAsync(category.Id);
-        if (existing is null) return;
+        if (existing is null) return "Die Kategorie existiert nicht mehr.";
 
-        existing.Name = category.Name;
+        db.Entry(existing).Property(c => c.Version).OriginalValue = category.Version;
+        existing.Version = category.Version + 1;
+
+        existing.Name = category.Name.Trim();
         existing.Description = category.Description;
         existing.IsActive = category.IsActive;
-        await db.SaveChangesAsync();
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return DbErrors.ConcurrencyMessage;
+        }
+        catch (DbUpdateException ex) when (DbErrors.IsUniqueViolation(ex, "Categories.Name"))
+        {
+            return "Eine Kategorie mit diesem Namen existiert bereits.";
+        }
+        return null;
     }
 
     public async Task<string?> DeleteCategoryAsync(int id)
@@ -82,24 +110,62 @@ public class CategoryService
         return await db.InspectionIntervals.FindAsync(id);
     }
 
-    public async Task CreateIntervalAsync(InspectionInterval interval)
+    /// <summary>
+    /// Legt ein Intervall an und erzeugt (atomar) Aufgaben für bereits vorhandene aktive Artikel
+    /// der Kategorie. Gibt die Anzahl erzeugter Aufgaben zurück.
+    /// </summary>
+    public async Task<(string? error, int createdTasks)> CreateIntervalAsync(InspectionInterval interval)
     {
         await using var db = await _factory.CreateDbContextAsync();
+        await using var tx = await db.Database.BeginTransactionAsync();
+        interval.Name = interval.Name.Trim();
         db.InspectionIntervals.Add(interval);
         await db.SaveChangesAsync();
+
+        var created = await _taskGeneration.AddMissingTasksForIntervalAsync(db, interval);
+        if (created > 0)
+        {
+            await db.SaveChangesAsync();
+        }
+        await tx.CommitAsync();
+        return (null, created);
     }
 
-    public async Task UpdateIntervalAsync(InspectionInterval interval)
+    /// <summary>
+    /// Aktualisiert ein Intervall. Wird es dabei nutzbar (aktiv + Formular), werden für Artikel
+    /// ohne offene Aufgabe dieses Intervalls Aufgaben nachgezogen.
+    /// </summary>
+    public async Task<(string? error, int createdTasks)> UpdateIntervalAsync(InspectionInterval interval)
     {
         await using var db = await _factory.CreateDbContextAsync();
         var existing = await db.InspectionIntervals.FindAsync(interval.Id);
-        if (existing is null) return;
+        if (existing is null) return ("Das Intervall existiert nicht mehr.", 0);
 
-        existing.Name = interval.Name;
+        var wasUsable = existing.IsActive && existing.FormId is not null;
+
+        db.Entry(existing).Property(i => i.Version).OriginalValue = interval.Version;
+        existing.Version = interval.Version + 1;
+
+        existing.Name = interval.Name.Trim();
         existing.IntervalMonths = interval.IntervalMonths;
         existing.FormId = interval.FormId;
         existing.IsActive = interval.IsActive;
-        await db.SaveChangesAsync();
+
+        var created = 0;
+        if (!wasUsable && existing.IsActive && existing.FormId is not null)
+        {
+            created = await _taskGeneration.AddMissingTasksForIntervalAsync(db, existing);
+        }
+
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return (DbErrors.ConcurrencyMessage, 0);
+        }
+        return (null, created);
     }
 
     public async Task DeleteIntervalAsync(int id)

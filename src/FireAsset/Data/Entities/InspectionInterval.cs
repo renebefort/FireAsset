@@ -26,5 +26,8 @@ public class InspectionInterval
 
     public bool IsActive { get; set; } = true;
 
+    /// <summary>Optimistisches Concurrency-Token (wird bei jeder Änderung erhöht).</summary>
+    public int Version { get; set; }
+
     public ICollection<InspectionTask> Tasks { get; set; } = new List<InspectionTask>();
 }

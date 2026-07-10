@@ -79,7 +79,7 @@
 
     <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem" class="rz-mt-2">
         <RadzenButton Text="Abbrechen" ButtonStyle="ButtonStyle.Light" Click="() => Dialogs.Close(false)" />
-        <RadzenButton Text="Speichern" ButtonStyle="ButtonStyle.Primary" Icon="save" Click="Save" />
+        <RadzenButton Text="Speichern" ButtonStyle="ButtonStyle.Primary" Icon="save" Click="Save" Disabled="@_saving" />
     </RadzenStack>
 </RadzenStack>
 
@@ -87,6 +87,7 @@
     [Parameter] public int? FormId { get; set; }
     [Parameter] public int? UserId { get; set; }
 
+    private bool _saving;
     private FormEditModel _model = new();
 
     protected override async Task OnInitializedAsync()
@@ -123,6 +124,7 @@
 
     private async Task Save()
     {
+        if (_saving) return;
         if (string.IsNullOrWhiteSpace(_model.Name))
         {
             Notify("Der Name des Formulars ist erforderlich.");
@@ -139,8 +141,21 @@
             return;
         }
 
-        await FormService.SaveAsync(_model, UserId);
-        Dialogs.Close(true);
+        _saving = true;
+        try
+        {
+            var error = await FormService.SaveAsync(_model, UserId);
+            if (error is not null)
+            {
+                Notify(error);
+                return;
+            }
+            Dialogs.Close(true);
+        }
+        finally
+        {
+            _saving = false;
+        }
     }
 
     private void Notify(string message) =>

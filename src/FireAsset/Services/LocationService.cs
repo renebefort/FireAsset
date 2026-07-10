@@ -44,31 +44,63 @@ public class LocationService
     public async Task<bool> BarcodeExistsAsync(string barcode, int? excludeId = null)
     {
         if (string.IsNullOrWhiteSpace(barcode)) return false;
+        var value = barcode.Trim();
         await using var db = await _factory.CreateDbContextAsync();
-        return await db.Locations.AnyAsync(l => l.Barcode == barcode && l.Id != excludeId);
+        return await db.Locations.AnyAsync(l => l.Barcode == value && l.Id != excludeId);
     }
 
-    public async Task CreateAsync(Location location)
+    /// <summary>Legt einen Standort an. Gibt bei Blockade eine Fehlermeldung zurück, sonst null.</summary>
+    public async Task<string?> CreateAsync(Location location)
     {
         await using var db = await _factory.CreateDbContextAsync();
         Normalize(location);
         db.Locations.Add(location);
-        await db.SaveChangesAsync();
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (DbErrors.IsUniqueViolation(ex, "Locations.Barcode"))
+        {
+            return "Dieser Barcode wird bereits verwendet.";
+        }
+        return null;
     }
 
-    public async Task UpdateAsync(Location location)
+    /// <summary>Aktualisiert einen Standort. Gibt bei Blockade eine Fehlermeldung zurück, sonst null.</summary>
+    public async Task<string?> UpdateAsync(Location location)
     {
+        // Server-seitiger Zyklenschutz (unabhängig von der UI-Vorprüfung).
+        if (await WouldCreateCycleAsync(location.Id, location.ParentLocationId))
+        {
+            return "Ungültige Auswahl: Ein Standort kann nicht sich selbst oder einem Nachfahren untergeordnet werden.";
+        }
+
         await using var db = await _factory.CreateDbContextAsync();
         var existing = await db.Locations.FindAsync(location.Id);
-        if (existing is null) return;
+        if (existing is null) return "Der Standort existiert nicht mehr.";
 
         Normalize(location);
+        db.Entry(existing).Property(l => l.Version).OriginalValue = location.Version;
+        existing.Version = location.Version + 1;
+
         existing.Name = location.Name;
         existing.Description = location.Description;
         existing.Barcode = location.Barcode;
         existing.Icon = location.Icon;
         existing.ParentLocationId = location.ParentLocationId;
-        await db.SaveChangesAsync();
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return DbErrors.ConcurrencyMessage;
+        }
+        catch (DbUpdateException ex) when (DbErrors.IsUniqueViolation(ex, "Locations.Barcode"))
+        {
+            return "Dieser Barcode wird bereits verwendet.";
+        }
+        return null;
     }
 
     /// <summary>Löscht einen Standort. Gibt bei Blockade eine Fehlermeldung zurück, sonst null.</summary>
@@ -115,6 +147,7 @@ public class LocationService
 
     private static void Normalize(Location location)
     {
+        location.Name = location.Name.Trim();
         location.Barcode = string.IsNullOrWhiteSpace(location.Barcode) ? null : location.Barcode.Trim();
         location.Description = string.IsNullOrWhiteSpace(location.Description) ? null : location.Description;
         location.Icon = string.IsNullOrWhiteSpace(location.Icon) ? null : location.Icon;

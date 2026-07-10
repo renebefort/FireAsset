@@ -13,10 +13,11 @@ Zentrale Webanwendung zur Verwaltung von Geräten, Prüfungen, Aufgaben und Stan
 ## Funktionsumfang
 - **Dashboard** – Kennzahlen, Prüfstatus-Verteilung, fällige Aufgaben
 - **Stammdaten** – Benutzer, hierarchische Standorte, Kategorien & Intervalle, versionierte Formulare
-- **Artikelstamm** – Artikelverwaltung, Barcode-Suche, Standortwechsel per Scan, automatische Aufgabenanlage
-- **Aufgaben** – Grid mit verschiebbaren Spalten, Filter je Spalte, Mehrfachauswahl/Stapelabarbeitung, Prüfformular-Erfassung
+- **Artikelstamm** – Artikelverwaltung, Kopierfunktion, Barcode-Suche, Standortwechsel per Scan, automatische Aufgabenanlage
+- **Aufgaben** – Grid mit verschiebbaren Spalten, Filter je Spalte, Fälligkeits-Ampel (rot/orange), Mehrfachauswahl/Stapelabarbeitung, Prüfformular-Erfassung, manuelles Stilllegen mit optionaler Folgeaufgabe
 - **Protokolle** – archivierte Prüfhistorie mit Read-only-Detailansicht
 - **Export** – CSV-Export der Inventarliste (filterbar)
+- **Changelog** – Änderungshistorie der Anwendung, gruppiert nach Release-Tags
 
 ## Starten (Entwicklung)
 ```bash
@@ -56,11 +57,17 @@ Kestrel) dringend empfohlen.
 
 ### Backup
 Die gesamte Anwendungsdatenhaltung liegt in der SQLite-Datei (`fireasset.db`).
+Die Datenbank läuft im WAL-Modus; zur Datei gehören dann auch `fireasset.db-wal`
+und `fireasset.db-shm` (beim Kopieren im laufenden Betrieb mitnehmen bzw.
+SQLite-Online-Backup verwenden).
 Backup = regelmäßiges Kopieren dieser Datei (idealerweise bei gestoppter Anwendung oder
 per SQLite-Online-Backup). Es gibt keine anwendungsinterne Backup-Funktion (bewusst, gemäß Spec).
 
 ### Sicherheit
-- Passwörter werden ausschließlich gehasht gespeichert.
+- Passwörter werden ausschließlich gehasht gespeichert (Mindestlänge 8 Zeichen).
+- Login-Drosselung: nach 5 Fehlversuchen wird das Konto 15 Minuten gesperrt.
+- Sitzungen werden bei jeder Anfrage revalidiert: deaktivierte/gelöschte Benutzer verlieren
+  ihre Sitzung sofort.
 - Der Barcode-Scanner wird wie eine Tastatur verwendet (USB-HID); Eingabe + Enter löst Suche/Umlagerung aus.
 
 ## Datenbank-Migrationen

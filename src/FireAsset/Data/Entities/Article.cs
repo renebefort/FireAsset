@@ -51,6 +51,9 @@ public class Article
 
     public DateTime CreatedAt { get; set; }
 
+    /// <summary>Optimistisches Concurrency-Token (wird bei jeder Änderung erhöht).</summary>
+    public int Version { get; set; }
+
     public DateTime? ModifiedAt { get; set; }
 
     public int? CreatedByUserId { get; set; }

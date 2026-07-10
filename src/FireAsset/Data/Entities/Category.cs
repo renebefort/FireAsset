@@ -13,6 +13,9 @@ public class Category
 
     public bool IsActive { get; set; } = true;
 
+    /// <summary>Optimistisches Concurrency-Token (wird bei jeder Änderung erhöht).</summary>
+    public int Version { get; set; }
+
     public ICollection<InspectionInterval> Intervals { get; set; } = new List<InspectionInterval>();
 
     public ICollection<Article> Articles { get; set; } = new List<Article>();

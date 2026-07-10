@@ -38,6 +38,10 @@ namespace FireAsset.Data.Migrations
                 name: "FK_InspectionIntervals_Forms_FormId",
                 table: "InspectionIntervals");
 
+            // Intervalle ohne Formular können die wieder verpflichtende FK-Spalte nicht erfüllen
+            // (defaultValue 0 wäre eine ungültige Form-Referenz) und müssen beim Rollback entfallen.
+            migrationBuilder.Sql("DELETE FROM \"InspectionIntervals\" WHERE \"FormId\" IS NULL;");
+
             migrationBuilder.AlterColumn<int>(
                 name: "FormId",
                 table: "InspectionIntervals",

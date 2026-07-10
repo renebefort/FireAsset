@@ -12,8 +12,8 @@ else
         <RadzenRow>
             <RadzenColumn Size="6"><strong>Artikel:</strong> @_protocol.Article.Identification</RadzenColumn>
             <RadzenColumn Size="6"><strong>Formular:</strong> @_protocol.FormVersion.Form.Name (v@(_protocol.FormVersion.VersionNumber))</RadzenColumn>
-            <RadzenColumn Size="6"><strong>Datum:</strong> @_protocol.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</RadzenColumn>
-            <RadzenColumn Size="6"><strong>Erfasst von:</strong> @(_protocol.CreatedByUser is null ? "—" : _protocol.CreatedByUser.FirstName + " " + _protocol.CreatedByUser.LastName)</RadzenColumn>
+            <RadzenColumn Size="6"><strong>Prüfdatum:</strong> @_protocol.CompletedDate.ToString("dd.MM.yyyy") · erfasst @_protocol.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</RadzenColumn>
+            <RadzenColumn Size="6"><strong>Erfasst von:</strong> @(InspectorName())</RadzenColumn>
             <RadzenColumn Size="6">
                 <strong>Ergebnis:</strong>
                 <RadzenBadge Text="@InspectionResultInfo.Label(_protocol.Result)" BadgeStyle="@InspectionResultInfo.BadgeStyle(_protocol.Result)" />
@@ -62,6 +62,11 @@ else
     {
         _protocol = await ProtocolService.GetDetailAsync(ProtocolId);
     }
+
+    /// <summary>Snapshot-Name bevorzugt: bleibt auch nach Löschung des Benutzers erhalten.</summary>
+    private string InspectorName() =>
+        _protocol?.CreatedByUserName
+        ?? (_protocol?.CreatedByUser is User u ? $"{u.FirstName} {u.LastName}" : "—");
 
     private static string Format(FieldType type, string? value)
     {

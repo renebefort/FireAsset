@@ -42,12 +42,14 @@
 
     <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem">
         <RadzenButton Text="Abbrechen" ButtonStyle="ButtonStyle.Light" Click="() => Dialogs.Close(false)" />
-        <RadzenButton Text="Speichern" ButtonStyle="ButtonStyle.Primary" Icon="save" Click="Save" />
+        <RadzenButton Text="Speichern" ButtonStyle="ButtonStyle.Primary" Icon="save" Click="Save" Disabled="@_saving" />
     </RadzenStack>
 </RadzenStack>
 
 @code {
     [Parameter] public int? LocationId { get; set; }
+
+    private bool _saving;
 
     public record IconOption(string Value, string Label);
     private record ParentOption(int Id, string Path);
@@ -86,6 +88,7 @@
 
     private async Task Save()
     {
+        if (_saving) return;
         if (string.IsNullOrWhiteSpace(_location.Name))
         {
             Notify("Der Name ist erforderlich.");
@@ -103,15 +106,23 @@
             return;
         }
 
-        if (_location.Id == 0)
+        _saving = true;
+        try
         {
-            await LocationService.CreateAsync(_location);
+            var error = _location.Id == 0
+                ? await LocationService.CreateAsync(_location)
+                : await LocationService.UpdateAsync(_location);
+            if (error is not null)
+            {
+                Notify(error);
+                return;
+            }
+            Dialogs.Close(true);
         }
-        else
+        finally
         {
-            await LocationService.UpdateAsync(_location);
+            _saving = false;
         }
-        Dialogs.Close(true);
     }
 
     private void Notify(string message) =>

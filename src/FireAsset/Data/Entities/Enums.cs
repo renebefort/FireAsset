@@ -30,10 +30,13 @@ public enum InspectionResult
     NichtBestanden = 2,
 }
 
-/// <summary>Status einer Prüfaufgabe.</summary>
-public enum TaskStatus
+/// <summary>Status einer Prüfaufgabe (bewusst nicht "TaskStatus", um die Kollision mit System.Threading.Tasks.TaskStatus zu vermeiden).</summary>
+public enum InspectionTaskStatus
 {
     Neu = 0,
     InBearbeitung = 1,
     Erledigt = 2,
+
+    /// <summary>Manuell stillgelegt: ohne Prüfung geschlossen (kein Protokoll).</summary>
+    Stillgelegt = 3,
 }

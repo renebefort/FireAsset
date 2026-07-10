@@ -11,28 +11,26 @@
     <RadzenButton Icon="add" Text="Neuer Standort" ButtonStyle="ButtonStyle.Primary" Click="() => OpenEditor(null)" />
 </RadzenStack>
 
-<RadzenDataGrid @ref="_grid" Data="@_locations" TItem="Location" AllowSorting="true"
+<RadzenDataGrid Data="@_rows" TItem="LocationRow" AllowSorting="true"
                 AllowFiltering="true" FilterMode="FilterMode.Advanced" GridLines="DataGridGridLines.Both" AllowColumnResize="true"
                 AllowColumnPicking="true" AllowPaging="true" PageSize="20"
                 PageSizeOptions="@(new int[] { 10, 20, 50, 100 })" ShowPagingSummary="true"
-                RowDoubleClick="@(args => OpenEditor(args.Data.Id))">
+                RowDoubleClick="@(args => OpenEditor(args.Data!.Id))">
     <Columns>
-        <RadzenDataGridColumn TItem="Location" Property="Name" Title="Name" />
-        <RadzenDataGridColumn TItem="Location" Title="Pfad" Sortable="false">
-            <Template Context="loc">@PathOf(loc)</Template>
-        </RadzenDataGridColumn>
-        <RadzenDataGridColumn TItem="Location" Property="Barcode" Title="Barcode" Width="160px" />
-        <RadzenDataGridColumn TItem="Location" Property="Icon" Title="Icon" Width="160px">
-            <Template Context="loc">
-                <RadzenIcon Icon="@(string.IsNullOrEmpty(loc.Icon) ? "place" : loc.Icon)" />
-                <span class="rz-ml-2">@IconLabel(loc.Icon)</span>
+        <RadzenDataGridColumn TItem="LocationRow" Property="Name" Title="Name" />
+        <RadzenDataGridColumn TItem="LocationRow" Property="Path" Title="Pfad" />
+        <RadzenDataGridColumn TItem="LocationRow" Property="Barcode" Title="Barcode" Width="160px" />
+        <RadzenDataGridColumn TItem="LocationRow" Property="Icon" Title="Icon" Width="160px">
+            <Template Context="row">
+                <RadzenIcon Icon="@(string.IsNullOrEmpty(row.Icon) ? "place" : row.Icon)" />
+                <span class="rz-ml-2">@IconLabel(row.Icon)</span>
             </Template>
         </RadzenDataGridColumn>
-        <RadzenDataGridColumn TItem="Location" Property="Description" Title="Beschreibung" />
-        <RadzenDataGridColumn TItem="Location" Context="loc" Title="Aktionen" Sortable="false" Filterable="false" Pickable="false" Width="140px" TextAlign="TextAlign.Center">
-            <Template Context="loc">
-                <RadzenButton Icon="edit" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="() => OpenEditor(loc.Id)" title="Bearbeiten" />
-                <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small" Click="() => DeleteRow(loc)" title="Löschen" />
+        <RadzenDataGridColumn TItem="LocationRow" Property="Description" Title="Beschreibung" />
+        <RadzenDataGridColumn TItem="LocationRow" Context="row" Title="Aktionen" Sortable="false" Filterable="false" Pickable="false" Width="140px" TextAlign="TextAlign.Center">
+            <Template Context="row">
+                <RadzenButton Icon="edit" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="() => OpenEditor(row.Id)" title="Bearbeiten" />
+                <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small" Click="() => DeleteRow(row)" title="Löschen" />
             </Template>
         </RadzenDataGridColumn>
     </Columns>
@@ -40,6 +38,9 @@
 
 @code {
     private record IconOption(string Value, string Label);
+
+    /// <summary>Grid-Zeile mit vorberechnetem Pfad, damit die Pfad-Spalte sortier-/filterbar ist.</summary>
+    public record LocationRow(int Id, string Name, string Path, string? Barcode, string? Icon, string? Description);
 
     private static readonly IconOption[] Icons =
     {
@@ -52,19 +53,19 @@
         new("place", "Sonstiges"),
     };
 
-    private RadzenDataGrid<Location> _grid = default!;
-    private List<Location> _locations = new();
-    private Dictionary<int, Location> _byId = new();
+    private List<LocationRow> _rows = new();
 
     protected override async Task OnInitializedAsync() => await Reload();
 
     private async Task Reload()
     {
-        _locations = await LocationService.GetAllAsync();
-        _byId = _locations.ToDictionary(l => l.Id);
+        var locations = await LocationService.GetAllAsync();
+        var byId = locations.ToDictionary(l => l.Id);
+        _rows = locations
+            .Select(l => new LocationRow(l.Id, l.Name, LocationService.BuildPath(l, byId), l.Barcode, l.Icon, l.Description))
+            .OrderBy(r => r.Name)
+            .ToList();
     }
-
-    private string PathOf(Location loc) => LocationService.BuildPath(loc, _byId);
 
     private string IconLabel(string? icon) => Icons.FirstOrDefault(i => i.Value == icon)?.Label ?? "";
 
@@ -78,13 +79,13 @@
         if (result is true) await Reload();
     }
 
-    private async Task DeleteRow(Location loc)
+    private async Task DeleteRow(LocationRow row)
     {
-        var confirmed = await Dialogs.Confirm($"Standort \"{loc.Name}\" wirklich löschen?", "Löschen bestätigen",
+        var confirmed = await Dialogs.Confirm($"Standort \"{row.Name}\" wirklich löschen?", "Löschen bestätigen",
             new ConfirmOptions { OkButtonText = "Löschen", CancelButtonText = "Abbrechen" });
         if (confirmed != true) return;
 
-        var error = await LocationService.DeleteAsync(loc.Id);
+        var error = await LocationService.DeleteAsync(row.Id);
         if (error is not null)
         {
             Notify(error);

@@ -29,11 +29,14 @@
 </RadzenStack>
 
 @code {
+    [Parameter] public int? UserId { get; set; }
+
     private string _articleBarcode = string.Empty;
     private string _locationBarcode = string.Empty;
     private string? _result;
     private bool _ok;
     private bool _anyChange;
+    private bool _moving;
     private ElementReference _articleBox;
     private ElementReference _locationBox;
 
@@ -55,6 +58,7 @@
 
     private async Task Move()
     {
+        if (_moving) return;
         if (string.IsNullOrWhiteSpace(_articleBarcode) || string.IsNullOrWhiteSpace(_locationBarcode))
         {
             _ok = false;
@@ -62,15 +66,23 @@
             return;
         }
 
-        var (ok, message) = await ArticleService.ChangeLocationByBarcodeAsync(_articleBarcode, _locationBarcode);
-        _ok = ok;
-        _result = message;
-        if (ok)
+        _moving = true;
+        try
         {
-            _anyChange = true;
-            _articleBarcode = string.Empty;
-            _locationBarcode = string.Empty;
-            await _articleBox.FocusAsync();
+            var (ok, message) = await ArticleService.ChangeLocationByBarcodeAsync(_articleBarcode, _locationBarcode, UserId);
+            _ok = ok;
+            _result = message;
+            if (ok)
+            {
+                _anyChange = true;
+                _articleBarcode = string.Empty;
+                _locationBarcode = string.Empty;
+                await _articleBox.FocusAsync();
+            }
+        }
+        finally
+        {
+            _moving = false;
         }
     }
 }

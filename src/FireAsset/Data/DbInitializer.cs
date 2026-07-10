@@ -18,6 +18,10 @@ public static class DbInitializer
 
         await db.Database.MigrateAsync();
 
+        // WAL-Modus (persistiert in der DB-Datei): parallele Lesezugriffe blockieren
+        // Schreibzugriffe nicht mehr – vermeidet "database is locked" unter Blazor-Server-Last.
+        await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;");
+
         if (await db.Users.AnyAsync())
         {
             return;
@@ -39,6 +43,13 @@ public static class DbInitializer
         admin.PasswordHash = new PasswordHasher<User>().HashPassword(admin, password);
 
         db.Users.Add(admin);
-        await db.SaveChangesAsync();
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            // Eine zweite Instanz hat den Admin zeitgleich angelegt (Unique-Index E-Mail) – unkritisch.
+        }
     }
 }
