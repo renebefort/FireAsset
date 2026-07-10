@@ -13,10 +13,11 @@ Zentrale Webanwendung zur Verwaltung von Geräten, Prüfungen, Aufgaben und Stan
 ## Funktionsumfang
 - **Dashboard** – Kennzahlen, Prüfstatus-Verteilung, fällige Aufgaben
 - **Stammdaten** – Benutzer, hierarchische Standorte, Kategorien & Intervalle, versionierte Formulare
-- **Artikelstamm** – Artikelverwaltung, Barcode-Suche, Standortwechsel per Scan, automatische Aufgabenanlage
-- **Aufgaben** – Grid mit verschiebbaren Spalten, Filter je Spalte, Mehrfachauswahl/Stapelabarbeitung, Prüfformular-Erfassung
+- **Artikelstamm** – Artikelverwaltung, Kopierfunktion, Barcode-Suche, Standortwechsel per Scan, automatische Aufgabenanlage
+- **Aufgaben** – Grid mit verschiebbaren Spalten, Filter je Spalte, Fälligkeits-Ampel (rot/orange), Mehrfachauswahl/Stapelabarbeitung, Prüfformular-Erfassung, manuelles Stilllegen mit optionaler Folgeaufgabe
 - **Protokolle** – archivierte Prüfhistorie mit Read-only-Detailansicht
 - **Export** – CSV-Export der Inventarliste (filterbar)
+- **Changelog** – Änderungshistorie der Anwendung, gruppiert nach Release-Tags
 
 ## Starten (Entwicklung)
 ```bash

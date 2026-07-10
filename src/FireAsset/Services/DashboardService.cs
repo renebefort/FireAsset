@@ -31,7 +31,9 @@ public class DashboardService
         // Deaktivierte Artikel zählen nicht in offene Aufgaben und Statusverteilung
         // (stillgelegte Geräte sollen die Kennzahlen nicht dauerhaft aufblähen).
         var openTasks = db.InspectionTasks
-            .Where(t => t.Status != InspectionTaskStatus.Erledigt && t.Article.IsActive);
+            .Where(t => t.Status != InspectionTaskStatus.Erledigt
+                        && t.Status != InspectionTaskStatus.Stillgelegt
+                        && t.Article.IsActive);
 
         return new Stats(
             ArticlesTotal: await db.Articles.CountAsync(),
@@ -51,7 +53,9 @@ public class DashboardService
         await using var db = await _factory.CreateDbContextAsync();
         var today = DateTime.Today;
         return await db.InspectionTasks
-            .Where(t => t.Status != InspectionTaskStatus.Erledigt && t.Article.IsActive)
+            .Where(t => t.Status != InspectionTaskStatus.Erledigt
+                        && t.Status != InspectionTaskStatus.Stillgelegt
+                        && t.Article.IsActive)
             .OrderBy(t => t.DueDate)
             .Take(take)
             .Select(t => new DueTask(t.Id, t.DueDate, t.Article.Identification, t.Form.Name, t.DueDate < today))

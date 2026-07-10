@@ -10,10 +10,12 @@ namespace FireAsset.Services;
 public class TaskService
 {
     private readonly IDbContextFactory<AppDbContext> _factory;
+    private readonly TaskGenerationService _taskGeneration;
 
-    public TaskService(IDbContextFactory<AppDbContext> factory)
+    public TaskService(IDbContextFactory<AppDbContext> factory, TaskGenerationService taskGeneration)
     {
         _factory = factory;
+        _taskGeneration = taskGeneration;
     }
 
     /// <summary>Zeile der Aufgabenliste (aus Aufgabe und zugeordnetem Artikel).</summary>
@@ -22,6 +24,7 @@ public class TaskService
         DateTime DueDate,
         InspectionTaskStatus Status,
         bool IsManual,
+        bool HasInterval,
         int ArticleId,
         int FormId,
         string ArticleIdentification,
@@ -29,6 +32,7 @@ public class TaskService
         string? ArticleInventoryNumber,
         string? CategoryName,
         string? LocationName,
+        string? LocationBarcode,
         string IntervalName,
         string FormName,
         DateTime? ArticleEndDate);
@@ -45,12 +49,15 @@ public class TaskService
 
         if (!includeDone)
         {
-            query = query.Where(t => t.Status != InspectionTaskStatus.Erledigt);
+            query = query.Where(t => t.Status != InspectionTaskStatus.Erledigt
+                                     && t.Status != InspectionTaskStatus.Stillgelegt);
         }
 
         // Offene Aufgaben deaktivierter Artikel ausblenden (erscheinen bei Reaktivierung wieder);
-        // die erledigte Historie bleibt sichtbar.
-        query = query.Where(t => t.Article.IsActive || t.Status == InspectionTaskStatus.Erledigt);
+        // die abgeschlossene Historie (erledigt/stillgelegt) bleibt sichtbar.
+        query = query.Where(t => t.Article.IsActive
+                                 || t.Status == InspectionTaskStatus.Erledigt
+                                 || t.Status == InspectionTaskStatus.Stillgelegt);
 
         return await query
             .OrderBy(t => t.DueDate)
@@ -59,6 +66,7 @@ public class TaskService
                 t.DueDate,
                 t.Status,
                 t.IsManual,
+                t.IntervalId != null,
                 t.ArticleId,
                 t.FormId,
                 t.Article.Identification,
@@ -66,6 +74,7 @@ public class TaskService
                 t.Article.InventoryNumber,
                 t.Article.Category != null ? t.Article.Category.Name : null,
                 t.Article.Location != null ? t.Article.Location.Name : null,
+                t.Article.Location != null ? t.Article.Location.Barcode : null,
                 t.Interval != null ? t.Interval.Name : "(manuell)",
                 t.Form.Name,
                 t.Article.EndDate))
@@ -76,9 +85,46 @@ public class TaskService
     {
         await using var db = await _factory.CreateDbContextAsync();
         var task = await db.InspectionTasks.FindAsync(taskId);
-        if (task is null || task.Status == InspectionTaskStatus.Erledigt) return;
+        if (task is null || task.Status is InspectionTaskStatus.Erledigt or InspectionTaskStatus.Stillgelegt) return;
         task.DueDate = dueDate;
         await db.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Legt eine offene Aufgabe manuell still (ohne Prüfung/Protokoll). Bei intervallgebundenen
+    /// Aufgaben kann optional die Folgeaufgabe erzeugt werden (Basis: heutiges Datum), damit der
+    /// Folge-Workflow weiterläuft. Läuft atomar; doppelte Stilllegung wird abgewiesen.
+    /// Gibt (Fehlermeldung, Info zur Folgeaufgabe) zurück.
+    /// </summary>
+    public async Task<(string? error, string? info)> DecommissionAsync(int taskId, bool createFollowUp)
+    {
+        await using var db = await _factory.CreateDbContextAsync();
+        await using var tx = await db.Database.BeginTransactionAsync();
+
+        var claimed = await db.InspectionTasks
+            .Where(t => t.Id == taskId
+                        && t.Status != InspectionTaskStatus.Erledigt
+                        && t.Status != InspectionTaskStatus.Stillgelegt)
+            .ExecuteUpdateAsync(s => s.SetProperty(t => t.Status, InspectionTaskStatus.Stillgelegt));
+        if (claimed == 0)
+        {
+            return ("Die Aufgabe ist bereits erledigt oder stillgelegt.", null);
+        }
+
+        string? info = null;
+        if (createFollowUp)
+        {
+            var task = await db.InspectionTasks
+                .Include(t => t.Interval)
+                .Include(t => t.Article)
+                .FirstAsync(t => t.Id == taskId);
+            info = _taskGeneration.AddFollowUpTask(db, task, DateTime.Today)
+                   ?? (task.Interval is null ? "Keine Folgeaufgabe: Die Aufgabe ist nicht mit einem Intervall verknüpft." : "Folgeaufgabe wurde angelegt.");
+            await db.SaveChangesAsync();
+        }
+
+        await tx.CommitAsync();
+        return (null, info);
     }
 
     /// <summary>Legt eine manuelle Aufgabe an (ohne Intervallbindung).</summary>

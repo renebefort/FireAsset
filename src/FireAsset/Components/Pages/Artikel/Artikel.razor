@@ -51,9 +51,10 @@
         <RadzenDataGridColumn TItem="Article" Property="IsActive" Title="Aktiv" Width="80px" TextAlign="TextAlign.Center">
             <Template Context="a"><RadzenCheckBox Value="a.IsActive" Disabled="true" /></Template>
         </RadzenDataGridColumn>
-        <RadzenDataGridColumn TItem="Article" Context="a" Title="Aktionen" Sortable="false" Filterable="false" Pickable="false" Width="160px" TextAlign="TextAlign.Center">
+        <RadzenDataGridColumn TItem="Article" Context="a" Title="Aktionen" Sortable="false" Filterable="false" Pickable="false" Width="200px" TextAlign="TextAlign.Center">
             <Template Context="a">
                 <RadzenButton Icon="edit" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="() => OpenEditor(a.Id)" title="Bearbeiten" />
+                <RadzenButton Icon="content_copy" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="() => CopyArticle(a)" title="Kopieren" />
                 <RadzenButton Icon="fact_check" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="() => UnplannedInspection(a)" title="Ungeplante Prüfung" />
                 <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small" Click="() => Delete(a)" title="Löschen" />
             </Template>
@@ -111,6 +112,14 @@
             new Dictionary<string, object?> { ["ArticleId"] = articleId, ["UserId"] = _userId },
             new DialogOptions { Width = "1000px", Height = "85%", Resizable = true, Draggable = true });
 
+        if (result is true) await Reload();
+    }
+
+    private async Task CopyArticle(Article a)
+    {
+        var result = await Dialogs.OpenAsync<ArticleEditDialog>($"Artikel kopieren: {a.Identification}",
+            new Dictionary<string, object?> { ["CopyFromArticleId"] = a.Id, ["UserId"] = _userId },
+            new DialogOptions { Width = "1000px", Height = "85%", Resizable = true, Draggable = true });
         if (result is true) await Reload();
     }
 

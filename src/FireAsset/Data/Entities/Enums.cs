@@ -36,4 +36,7 @@ public enum InspectionTaskStatus
     Neu = 0,
     InBearbeitung = 1,
     Erledigt = 2,
+
+    /// <summary>Manuell stillgelegt: ohne Prüfung geschlossen (kein Protokoll).</summary>
+    Stillgelegt = 3,
 }

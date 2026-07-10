@@ -36,6 +36,7 @@ builder.Services.AddScoped<ProtocolService>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<ExportService>();
 builder.Services.AddSingleton<LoginThrottleService>();
+builder.Services.AddScoped<ChangelogService>();
 
 // Authentifizierung: schlanke Cookie-Auth.
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)

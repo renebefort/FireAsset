@@ -1,5 +1,7 @@
 @inject InspectionService InspectionService
 @inject TaskService TaskService
+@inject ArticleService ArticleService
+@inject LocationService LocationService
 @inject NotificationService Notifications
 @inject DialogService Dialogs
 @using System.Globalization
@@ -38,6 +40,12 @@ else
                 <RadzenLabel Text="Letzte Werte anzeigen" Component="slv" />
                 <RadzenSwitch @bind-Value="_showLast" Name="slv" />
             </RadzenStack>
+        </RadzenStack>
+
+        @* Vollständiger Standort-Pfad, damit der Anwender sieht, wo sich der Artikel befindet. *@
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.3rem" class="rz-mt-0" Style="color:#6b7280;">
+            <RadzenIcon Icon="place" Style="font-size:1.1rem;" />
+            <RadzenText TextStyle="TextStyle.Body2" class="rz-my-0">@(_locationPath ?? "(kein Standort hinterlegt)")</RadzenText>
         </RadzenStack>
 
         @if (!Unplanned)
@@ -143,10 +151,12 @@ else
     private bool _needsFormSelection;
     private int? _chosenFormId;
     private List<Form> _forms = new();
+    private string? _locationPath;
 
     protected override async Task OnInitializedAsync()
     {
         _dueDate = DueDateParam;
+        await LoadLocationPathAsync();
 
         // Ungeplante Prüfung ohne vorgegebenes Formular: zuerst Formular wählen.
         if (Unplanned && FormId == 0)
@@ -177,6 +187,19 @@ else
         if (_model is not null)
         {
             _entries = _model.Fields.Select(f => new FieldEntry { Field = f }).ToList();
+        }
+    }
+
+    private async Task LoadLocationPathAsync()
+    {
+        var article = await ArticleService.GetByIdAsync(ArticleId);
+        if (article?.LocationId is not int locationId) return;
+
+        var locations = await LocationService.GetAllAsync();
+        var byId = locations.ToDictionary(l => l.Id);
+        if (byId.TryGetValue(locationId, out var location))
+        {
+            _locationPath = LocationService.BuildPath(location, byId);
         }
     }
 

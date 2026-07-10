@@ -8,7 +8,8 @@ namespace FireAsset.Services;
 /// Erzeugt Prüfaufgaben aus Kategorie-Intervallen. Regeln:
 /// - Erste Fälligkeit = Anschaffungsdatum + Rhythmus (Monate).
 /// - Folgeaufgabe    = Erledigt-Datum + Rhythmus (Monate).
-/// - Liegt die berechnete Fälligkeit nach dem Ende-Datum des Artikels, wird keine Aufgabe angelegt.
+/// - Keine neue Aufgabe, wenn der Artikel inaktiv ist oder die berechnete Fälligkeit nach
+///   dem Ende-Datum bzw. dem Ausmusterungsdatum des Artikels liegt.
 /// - Intervalle ohne hinterlegtes Formular werden übersprungen.
 ///
 /// Alle Methoden arbeiten auf einem vom Aufrufer verwalteten <see cref="AppDbContext"/> und
@@ -54,12 +55,16 @@ public class TaskGenerationService
             return $"Keine Folgeaufgabe erstellt: Das Intervall „{task.Interval.Name}“ ist deaktiviert " +
                    "oder hat kein Formular – die Prüfkette endet hier.";
         }
+        if (!task.Article.IsActive)
+        {
+            return "Keine Folgeaufgabe erstellt: Der Artikel ist inaktiv.";
+        }
 
         var dueDate = completedDate.AddMonths(task.Interval.IntervalMonths);
-        if (task.Article.EndDate is DateTime end && dueDate.Date > end.Date)
+        if (ExceedsArticleLifetime(task.Article, dueDate, out var limit, out var limitLabel))
         {
             return $"Keine Folgeaufgabe erstellt: Fälligkeitsdatum ({dueDate:dd.MM.yyyy}) liegt nach dem " +
-                   $"Ende-Datum des Artikels ({end:dd.MM.yyyy}).";
+                   $"{limitLabel} des Artikels ({limit:dd.MM.yyyy}).";
         }
 
         db.InspectionTasks.Add(new InspectionTask
@@ -91,7 +96,9 @@ public class TaskGenerationService
             .Where(a => a.CategoryId == interval.CategoryId && a.IsActive)
             .ToListAsync();
         var articleIdsWithOpenTask = await db.InspectionTasks
-            .Where(t => t.IntervalId == interval.Id && t.Status != InspectionTaskStatus.Erledigt)
+            .Where(t => t.IntervalId == interval.Id
+                        && t.Status != InspectionTaskStatus.Erledigt
+                        && t.Status != InspectionTaskStatus.Stillgelegt)
             .Select(t => t.ArticleId)
             .Distinct()
             .ToListAsync();
@@ -114,12 +121,16 @@ public class TaskGenerationService
         {
             return $"Intervall „{interval.Name}“ übersprungen: kein Formular hinterlegt.";
         }
+        if (!article.IsActive)
+        {
+            return $"Keine Aufgabe für „{interval.Name}“ erstellt: Der Artikel ist inaktiv.";
+        }
 
         var dueDate = article.AcquisitionDate.AddMonths(interval.IntervalMonths);
-        if (article.EndDate is DateTime end && dueDate.Date > end.Date)
+        if (ExceedsArticleLifetime(article, dueDate, out var limit, out var limitLabel))
         {
             return $"Keine Aufgabe für „{interval.Name}“ erstellt: Fälligkeitsdatum " +
-                   $"({dueDate:dd.MM.yyyy}) liegt nach dem Ende-Datum des Artikels ({end:dd.MM.yyyy}).";
+                   $"({dueDate:dd.MM.yyyy}) liegt nach dem {limitLabel} des Artikels ({limit:dd.MM.yyyy}).";
         }
 
         db.InspectionTasks.Add(new InspectionTask
@@ -134,5 +145,29 @@ public class TaskGenerationService
             CreatedAt = DateTime.UtcNow,
         });
         return null;
+    }
+
+    /// <summary>
+    /// True, wenn die Fälligkeit nach dem Lebensende des Artikels liegt (frühestes Datum aus
+    /// Ende-Datum und Ausmusterungsdatum). Liefert das maßgebliche Datum samt Bezeichnung.
+    /// </summary>
+    private static bool ExceedsArticleLifetime(Article article, DateTime dueDate, out DateTime limit, out string limitLabel)
+    {
+        limit = default;
+        limitLabel = string.Empty;
+
+        if (article.EndDate is DateTime end)
+        {
+            limit = end.Date;
+            limitLabel = "Ende-Datum";
+        }
+        if (article.DecommissionDate is DateTime decommission &&
+            (limitLabel.Length == 0 || decommission.Date < limit))
+        {
+            limit = decommission.Date;
+            limitLabel = "Ausmusterungsdatum";
+        }
+
+        return limitLabel.Length > 0 && dueDate.Date > limit;
     }
 }

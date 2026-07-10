@@ -82,9 +82,11 @@ public class InspectionService
         await using var db = await _factory.CreateDbContextAsync();
         await using var tx = await db.Database.BeginTransactionAsync();
 
-        // Aufgabe atomar "beanspruchen": schlägt fehl, wenn sie bereits erledigt ist.
+        // Aufgabe atomar "beanspruchen": schlägt fehl, wenn sie bereits erledigt/stillgelegt ist.
         var claimed = await db.InspectionTasks
-            .Where(t => t.Id == taskId && t.Status != InspectionTaskStatus.Erledigt)
+            .Where(t => t.Id == taskId
+                        && t.Status != InspectionTaskStatus.Erledigt
+                        && t.Status != InspectionTaskStatus.Stillgelegt)
             .ExecuteUpdateAsync(s => s.SetProperty(t => t.Status, InspectionTaskStatus.Erledigt));
         if (claimed == 0)
         {

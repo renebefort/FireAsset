@@ -47,9 +47,9 @@
     <RadzenText TextStyle="TextStyle.Body2">
         Standorte sind hierarchisch. Legen Sie zuerst die oberste Ebene an (ohne übergeordneten Standort),
         dann die untergeordneten und wählen Sie jeweils den übergeordneten Standort. Die Spalte <em>Pfad</em>
-        zeigt die vollständige Hierarchie (z. B. „Fahrzeug &gt; HLF &gt; Innenraum"). Optional können Sie je
-        Standort einen <strong>Barcode</strong> und ein Icon hinterlegen – der Barcode wird für den schnellen
-        Standortwechsel benötigt.
+        zeigt die vollständige Hierarchie (z. B. „Fahrzeug &gt; HLF &gt; Innenraum") und lässt sich wie die
+        übrigen Spalten sortieren und filtern. Optional können Sie je Standort einen <strong>Barcode</strong>
+        und ein Icon hinterlegen – der Barcode wird für den schnellen Standortwechsel benötigt.
     </RadzenText>
 </RadzenCard>
 
@@ -91,8 +91,15 @@
     </RadzenText>
     <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-2">
         Beim Speichern erzeugt das System automatisch für jedes aktive Intervall der Kategorie eine Aufgabe
-        (erste Fälligkeit = Anschaffungsdatum + Rhythmus). Liegt eine Fälligkeit nach dem Ende-Datum des Artikels,
-        wird dafür keine Aufgabe angelegt und Sie erhalten einen Hinweis.
+        (erste Fälligkeit = Anschaffungsdatum + Rhythmus). Es wird <strong>keine</strong> Aufgabe angelegt,
+        wenn der Artikel inaktiv ist oder die Fälligkeit nach dem <strong>Ende-Datum</strong> bzw. dem
+        <strong>Ausmusterungsdatum</strong> liegt – Sie erhalten dann jeweils einen Hinweis.
+    </RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-2">
+        <strong>Artikel kopieren:</strong> Über die Aktion <em>Kopieren</em> legen Sie ein weiteres, gleichartiges
+        Gerät an. Alle Stammdaten werden übernommen; gerätespezifische Kennungen (Barcode, Serien- und
+        Inventarnummer) bleiben leer und der Name erhält den Zusatz „(Kopie)". Ein Kategoriewechsel eines
+        bestehenden Artikels ersetzt dessen offene automatische Aufgaben durch die der neuen Kategorie.
     </RadzenText>
 </RadzenCard>
 
@@ -100,11 +107,15 @@
     <RadzenText TextStyle="TextStyle.H6">8. Aufgaben &amp; Prüfungen durchführen</RadzenText>
     <RadzenText TextStyle="TextStyle.Body2">
         Unter <em>Aufgaben</em> sehen Sie alle offenen Prüfungen, standardmäßig nach Fälligkeit sortiert.
-        So arbeiten Sie eine Prüfung ab:
+        Die Spalten <em>Standort</em> und <em>Standort-Barcode</em> zeigen, wo sich der Artikel befindet.
+        Der Formularname ist farblich markiert: <span style="color: var(--rz-danger); font-weight:600;">rot</span> =
+        überfällig, <span style="color:#e67e22; font-weight:600;">orange</span> = in diesem Monat fällig.
+        Dieselben Farben nutzt auch das Dashboard. So arbeiten Sie eine Prüfung ab:
     </RadzenText>
     <ol>
         <li>Bei Bedarf das <strong>Fälligkeitsdatum</strong> direkt in der Liste anpassen.</li>
-        <li>Auf <strong>Prüfen</strong> klicken (oder Zeile doppelklicken) – das zugeordnete Formular öffnet sich.</li>
+        <li>Auf <strong>Prüfen</strong> klicken (oder Zeile doppelklicken) – das zugeordnete Formular öffnet sich.
+            Im Kopf des Dialogs steht der vollständige Standort-Pfad des Artikels.</li>
         <li>Die Felder ausfüllen. Über den Schalter <strong>„Letzte Werte anzeigen"</strong> werden die Werte der
             vorherigen Prüfung eingeblendet, um sie zu vergleichen.</li>
         <li>Ein <strong>Prüfergebnis</strong> wählen (Bestanden / Mangelhaft / Nicht bestanden) und speichern.</li>
@@ -118,6 +129,13 @@
         <strong>Mehrere gleichartige Prüfungen:</strong> Markieren Sie mehrere Aufgaben über die Kontrollkästchen
         und nutzen Sie <strong>„Stapel abarbeiten"</strong>, um sie nacheinander zu erfassen.
         Über <strong>„Manuelle Aufgabe"</strong> legen Sie eine zusätzliche Prüfung außerhalb der Intervalle an.
+    </RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-2">
+        <strong>Aufgabe stilllegen:</strong> Über die Aktion mit dem Sperr-Symbol schließen Sie eine Aufgabe
+        <em>ohne</em> Prüfung – es entsteht kein Protokoll (z. B. für nicht mehr benötigte manuelle Aufgaben).
+        Bei intervallgebundenen Aufgaben fragt das System nach, ob automatisch eine <strong>Folgeaufgabe</strong>
+        angelegt werden soll (Fälligkeit = heute + Rhythmus), damit der Prüf-Workflow weiterläuft.
+        Stillgelegte Aufgaben blenden Sie über <strong>„Abgeschlossene anzeigen"</strong> wieder ein.
     </RadzenText>
 </RadzenCard>
 
@@ -153,8 +171,10 @@
     <RadzenText TextStyle="TextStyle.H6">12. Dashboard &amp; Export</RadzenText>
     <RadzenText TextStyle="TextStyle.Body2">
         Das <em>Dashboard</em> zeigt Kennzahlen (Artikel, offene/überfällige Aufgaben, Protokolle), die
-        Prüfstatus-Verteilung und die nächsten fälligen Aufgaben. Unter <em>Export</em> laden Sie die
-        Inventarliste als CSV-Datei herunter – optional gefiltert nach Kategorie, Standort und Status.
+        Prüfstatus-Verteilung und die nächsten fälligen Aufgaben – farblich markiert wie in der
+        Aufgabenübersicht (rot = überfällig, orange = diesen Monat fällig). Inaktive Artikel zählen nicht in
+        die Kennzahlen. Unter <em>Export</em> laden Sie die Inventarliste als CSV-Datei herunter – optional
+        gefiltert nach Kategorie, Standort und Status.
     </RadzenText>
 </RadzenCard>
 
@@ -167,4 +187,13 @@
         <li><strong>Spalten anordnen (Aufgaben):</strong> Spaltenköpfe per Drag &amp; Drop verschieben.</li>
         <li><strong>Seitengröße:</strong> Unten im Grid die Anzahl der Zeilen pro Seite wählen.</li>
     </ul>
+</RadzenCard>
+
+<RadzenCard class="rz-mb-3">
+    <RadzenText TextStyle="TextStyle.H6">14. Changelog</RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2">
+        Unter <em>Changelog</em> (letzter Menüpunkt) sehen Sie, was sich in der Anwendung geändert hat –
+        als Auflistung der Entwicklungsschritte, gruppiert nach Versionen (neueste zuerst). Änderungen,
+        die noch keiner Version zugeordnet sind, erscheinen unter „Unveröffentlicht".
+    </RadzenText>
 </RadzenCard>

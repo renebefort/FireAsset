@@ -69,6 +69,10 @@
 
 @code {
     [Parameter] public int? ArticleId { get; set; }
+
+    /// <summary>Id eines Artikels, dessen Daten als Vorlage für einen neuen Artikel dienen.</summary>
+    [Parameter] public int? CopyFromArticleId { get; set; }
+
     [Parameter] public int? UserId { get; set; }
 
     private record LocationOption(int Id, string Path);
@@ -98,6 +102,11 @@
         {
             var existing = await ArticleService.GetByIdAsync(id);
             if (existing is not null) _article = existing;
+        }
+        else if (CopyFromArticleId is int copyId)
+        {
+            var source = await ArticleService.GetByIdAsync(copyId);
+            if (source is not null) _article = CreateCopy(source);
         }
 
         _productionDate = _article.ProductionDate;
@@ -151,6 +160,27 @@
             _saving = false;
         }
     }
+
+    /// <summary>
+    /// Kopie als neuer Artikel: gerätespezifische Kennungen (Barcode, Serien- und
+    /// Inventarnummer) bleiben leer, alle übrigen Stammdaten werden übernommen.
+    /// </summary>
+    private static Article CreateCopy(Article source) => new()
+    {
+        Identification = $"{source.Identification} (Kopie)",
+        Manufacturer = source.Manufacturer,
+        Type = source.Type,
+        ManufacturerNumber = source.ManufacturerNumber,
+        AcquisitionDate = source.AcquisitionDate,
+        ProductionDate = source.ProductionDate,
+        DecommissionDate = source.DecommissionDate,
+        LegalBasis = source.LegalBasis,
+        EndDate = source.EndDate,
+        Description = source.Description,
+        CategoryId = source.CategoryId,
+        LocationId = source.LocationId,
+        IsActive = source.IsActive,
+    };
 
     private void Notify(string message) =>
         Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Warning, Summary = "Hinweis", Detail = message, Duration = 4000 });

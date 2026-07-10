@@ -72,11 +72,15 @@ else
                         <Columns>
                             <RadzenDataGridColumn TItem="DashboardService.DueTask" Property="DueDate" Title="Fällig" Width="110px" FormatString="{0:dd.MM.yyyy}">
                                 <Template Context="t">
-                                    <span style="@(t.Overdue ? "color: var(--rz-danger); font-weight:600;" : "")">@t.DueDate.ToString("dd.MM.yyyy")</span>
+                                    <span style="@DueStyle(t)">@t.DueDate.ToString("dd.MM.yyyy")</span>
                                 </Template>
                             </RadzenDataGridColumn>
                             <RadzenDataGridColumn TItem="DashboardService.DueTask" Property="ArticleIdentification" Title="Artikel" />
-                            <RadzenDataGridColumn TItem="DashboardService.DueTask" Property="FormName" Title="Formular" />
+                            <RadzenDataGridColumn TItem="DashboardService.DueTask" Property="FormName" Title="Formular">
+                                <Template Context="t">
+                                    <span style="@DueStyle(t)">@t.FormName</span>
+                                </Template>
+                            </RadzenDataGridColumn>
                         </Columns>
                     </RadzenDataGrid>
                 }
@@ -96,6 +100,10 @@ else
 
     private DashboardService.Stats? _stats;
     private List<DashboardService.DueTask> _dueTasks = new();
+
+    // Gleiche Signalfarben wie in der Aufgabenübersicht (Dashboard zeigt nur offene Aufgaben).
+    private static string DueStyle(DashboardService.DueTask t) =>
+        Aufgaben.Aufgaben.DueStyle(t.DueDate, InspectionTaskStatus.Neu);
 
     protected override async Task OnInitializedAsync()
     {

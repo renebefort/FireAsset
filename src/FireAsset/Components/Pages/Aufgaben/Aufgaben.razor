@@ -10,7 +10,7 @@
     <RadzenText TextStyle="TextStyle.H4" class="rz-my-0">Aufgaben</RadzenText>
     <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
         <RadzenCheckBox @bind-Value="_includeDone" Name="done" Change="@((bool _) => Reload())" />
-        <RadzenLabel Text="Erledigte anzeigen" Component="done" class="rz-mr-2" />
+        <RadzenLabel Text="Abgeschlossene anzeigen" Component="done" class="rz-mr-2" />
         <RadzenButton Icon="playlist_add_check" Text="Stapel abarbeiten" ButtonStyle="ButtonStyle.Secondary"
                       Disabled="@(_selectedIds.Count == 0)" Click="ProcessBatch" />
         <RadzenButton Icon="add" Text="Manuelle Aufgabe" ButtonStyle="ButtonStyle.Primary" Click="OpenManual" />
@@ -37,12 +37,17 @@
         <RadzenDataGridColumn TItem="TaskService.TaskListItem" Property="ArticleInventoryNumber" Title="Inv.-Nr." Width="110px" />
         <RadzenDataGridColumn TItem="TaskService.TaskListItem" Property="CategoryName" Title="Kategorie" Width="140px" />
         <RadzenDataGridColumn TItem="TaskService.TaskListItem" Property="LocationName" Title="Standort" Width="140px" />
+        <RadzenDataGridColumn TItem="TaskService.TaskListItem" Property="LocationBarcode" Title="Standort-Barcode" Width="140px" />
         <RadzenDataGridColumn TItem="TaskService.TaskListItem" Property="IntervalName" Title="Intervall" Width="150px" />
-        <RadzenDataGridColumn TItem="TaskService.TaskListItem" Property="FormName" Title="Formular" Width="150px" />
+        <RadzenDataGridColumn TItem="TaskService.TaskListItem" Property="FormName" Title="Formular" Width="150px">
+            <Template Context="item">
+                <span style="@DueStyle(item.DueDate, item.Status)">@item.FormName</span>
+            </Template>
+        </RadzenDataGridColumn>
         <RadzenDataGridColumn TItem="TaskService.TaskListItem" Property="DueDate" Title="Fälligkeit" Width="160px" SortOrder="SortOrder.Ascending">
             <Template Context="item">
                 <RadzenDatePicker TValue="DateTime" Value="@item.DueDate" DateFormat="dd.MM.yyyy"
-                                  Disabled="@(item.Status == InspectionTaskStatus.Erledigt)"
+                                  Disabled="@(IsClosed(item.Status))"
                                   Change="@((DateTime? args) => OnDueChanged(item, args))" Style="width: 140px" />
             </Template>
         </RadzenDataGridColumn>
@@ -52,11 +57,14 @@
                 <RadzenBadge Text="@StatusLabel(item.Status)" BadgeStyle="@StatusBadge(item.Status)" />
             </Template>
         </RadzenDataGridColumn>
-        <RadzenDataGridColumn TItem="TaskService.TaskListItem" Context="item" Title="Aktion" Width="110px" Sortable="false" Filterable="false" Reorderable="false" Pickable="false" TextAlign="TextAlign.Center">
+        <RadzenDataGridColumn TItem="TaskService.TaskListItem" Context="item" Title="Aktion" Width="185px" MinWidth="185px" Sortable="false" Filterable="false" Reorderable="false" Pickable="false" TextAlign="TextAlign.Center">
             <Template Context="item">
                 <RadzenButton Icon="fact_check" Text="Prüfen" Size="ButtonSize.Small"
-                              Disabled="@(item.Status == InspectionTaskStatus.Erledigt)"
+                              Disabled="@(IsClosed(item.Status))"
                               Click="() => Inspect(item)" />
+                <RadzenButton Icon="block" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                              Disabled="@(IsClosed(item.Status))"
+                              Click="() => Decommission(item)" title="Aufgabe stilllegen (ohne Prüfung schließen)" />
             </Template>
         </RadzenDataGridColumn>
     </Columns>
@@ -111,9 +119,43 @@
 
     private async Task Inspect(TaskService.TaskListItem item)
     {
-        if (item.Status == InspectionTaskStatus.Erledigt) return;
+        if (IsClosed(item.Status)) return;
         var result = await OpenInspection(item);
         if (result is true) await Reload();
+    }
+
+    private async Task Decommission(TaskService.TaskListItem item)
+    {
+        if (IsClosed(item.Status)) return;
+
+        var confirmed = await Dialogs.Confirm(
+            $"Aufgabe \"{item.FormName}\" für \"{item.ArticleIdentification}\" wirklich stilllegen? " +
+            "Die Aufgabe wird ohne Prüfung geschlossen; es entsteht kein Protokoll.",
+            "Aufgabe stilllegen",
+            new ConfirmOptions { OkButtonText = "Stilllegen", CancelButtonText = "Abbrechen" });
+        if (confirmed != true) return;
+
+        // Bei intervallgebundenen Aufgaben: Nachfrage, ob der Folge-Workflow weiterlaufen soll.
+        var createFollowUp = false;
+        if (item.HasInterval)
+        {
+            createFollowUp = await Dialogs.Confirm(
+                "Soll automatisch eine Folgeaufgabe angelegt werden (Fälligkeit = heute + Prüfrhythmus)? " +
+                "Damit läuft der Folge-Workflow für diesen Artikel weiter.",
+                "Folgeaufgabe anlegen?",
+                new ConfirmOptions { OkButtonText = "Ja, Folgeaufgabe anlegen", CancelButtonText = "Nein" }) == true;
+        }
+
+        var (error, info) = await TaskService.DecommissionAsync(item.TaskId, createFollowUp);
+        if (error is not null)
+        {
+            Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Warning, Summary = "Hinweis", Detail = error, Duration = 5000 });
+        }
+        else
+        {
+            Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = "Stillgelegt", Detail = info ?? "Die Aufgabe wurde stillgelegt.", Duration = 6000 });
+        }
+        await Reload();
     }
 
     private async Task<object?> OpenInspection(TaskService.TaskListItem item)
@@ -134,8 +176,7 @@
 
     private async Task ProcessBatch()
     {
-        var batch = _tasks.Where(t => _selectedIds.Contains(t.TaskId)
-            && t.Status != InspectionTaskStatus.Erledigt).ToList();
+        var batch = _tasks.Where(t => _selectedIds.Contains(t.TaskId) && !IsClosed(t.Status)).ToList();
         foreach (var item in batch)
         {
             var result = await OpenInspection(item);
@@ -153,11 +194,36 @@
         if (result is true) await Reload();
     }
 
+    /// <summary>
+    /// Signalfarbe nach Fälligkeit (nur für offene Aufgaben):
+    /// Vergangenheit = rot, in diesem Monat fällig = orange, sonst neutral.
+    /// </summary>
+    /// <summary>True für Endzustände (erledigt oder stillgelegt).</summary>
+    private static bool IsClosed(InspectionTaskStatus s) =>
+        s is InspectionTaskStatus.Erledigt or InspectionTaskStatus.Stillgelegt;
+
+    public static string DueStyle(DateTime dueDate, InspectionTaskStatus status)
+    {
+        if (status is InspectionTaskStatus.Erledigt or InspectionTaskStatus.Stillgelegt) return "";
+        var today = DateTime.Today;
+        if (dueDate.Date < today)
+        {
+            return "color: var(--rz-danger); font-weight: 600;";
+        }
+        var monthEnd = new DateTime(today.Year, today.Month, 1).AddMonths(1).AddDays(-1);
+        if (dueDate.Date <= monthEnd)
+        {
+            return "color: #e67e22; font-weight: 600;";
+        }
+        return "";
+    }
+
     private static string StatusLabel(InspectionTaskStatus s) => s switch
     {
         InspectionTaskStatus.Neu => "Neu",
         InspectionTaskStatus.InBearbeitung => "In Bearbeitung",
         InspectionTaskStatus.Erledigt => "Erledigt",
+        InspectionTaskStatus.Stillgelegt => "Stillgelegt",
         _ => s.ToString(),
     };
 
@@ -166,6 +232,7 @@
         InspectionTaskStatus.Neu => BadgeStyle.Info,
         InspectionTaskStatus.InBearbeitung => BadgeStyle.Warning,
         InspectionTaskStatus.Erledigt => BadgeStyle.Success,
+        InspectionTaskStatus.Stillgelegt => BadgeStyle.Secondary,
         _ => BadgeStyle.Light,
     };
 }
