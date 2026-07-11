@@ -31,7 +31,7 @@
                 PageSizeOptions="@(new int[] { 10, 20, 50, 100 })" ShowPagingSummary="true"
                 RowDoubleClick="@(args => OpenEditor(args.Data!.Id))">
     <Columns>
-        <RadzenDataGridColumn TItem="Article" Property="Identification" Title="Identifikation" />
+        <RadzenDataGridColumn TItem="Article" Property="Identification" Title="Identifikation" Width="200px" />
         <RadzenDataGridColumn TItem="Article" Property="Barcode" Title="Barcode" Width="130px" />
         <RadzenDataGridColumn TItem="Article" Property="InventoryNumber" Title="Inv.-Nr." Width="120px" />
         <RadzenDataGridColumn TItem="Article" Property="Manufacturer" Title="Hersteller" Width="130px" />
@@ -41,6 +41,9 @@
         </RadzenDataGridColumn>
         <RadzenDataGridColumn TItem="Article" Title="Standort" Property="Location.Name" Width="150px">
             <Template Context="a">@a.Location?.Name</Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="Article" Title="Standort-Barcode" Property="Location.Barcode" Width="140px">
+            <Template Context="a">@a.Location?.Barcode</Template>
         </RadzenDataGridColumn>
         <RadzenDataGridColumn TItem="Article" Title="Prüfstatus" Width="130px" Sortable="false">
             <Template Context="a">
