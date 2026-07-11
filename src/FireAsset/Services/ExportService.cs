@@ -36,7 +36,7 @@ public class ExportService
         {
             "Identifikation", "Hersteller", "Typ", "Seriennummer", "Herstellernummer",
             "Inventarnummer", "Barcode", "Kategorie", "Standort", "Anschaffungsdatum",
-            "Ende-Datum", "Status", "Prüfstatus",
+            "Ende-Datum", "Status", "FTZ-Pool", "Prüfstatus",
         };
         sb.AppendLine(string.Join(';', header.Select(Escape)));
 
@@ -56,6 +56,7 @@ public class ExportService
                 a.AcquisitionDate.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture),
                 a.EndDate?.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture) ?? "",
                 a.IsActive ? "aktiv" : "inaktiv",
+                a.IsPoolDevice ? "ja" : "nein",
                 InspectionResultInfo.Label(a.CurrentInspectionStatus),
             };
             sb.AppendLine(string.Join(';', row.Select(Escape)));

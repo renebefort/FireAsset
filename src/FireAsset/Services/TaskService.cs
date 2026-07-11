@@ -25,6 +25,7 @@ public class TaskService
         InspectionTaskStatus Status,
         bool IsManual,
         bool HasInterval,
+        bool IsPoolDevice,
         int ArticleId,
         int FormId,
         string ArticleIdentification,
@@ -67,6 +68,7 @@ public class TaskService
                 t.Status,
                 t.IsManual,
                 t.IntervalId != null,
+                t.Article.IsPoolDevice,
                 t.ArticleId,
                 t.FormId,
                 t.Article.Identification,
@@ -111,13 +113,21 @@ public class TaskService
             return ("Die Aufgabe ist bereits erledigt oder stillgelegt.", null);
         }
 
+        var task = await db.InspectionTasks
+            .Include(t => t.Interval)
+            .Include(t => t.Article)
+            .FirstAsync(t => t.Id == taskId);
+
         string? info = null;
-        if (createFollowUp)
+        if (task.Article.IsPoolDevice)
         {
-            var task = await db.InspectionTasks
-                .Include(t => t.Interval)
-                .Include(t => t.Article)
-                .FirstAsync(t => t.Id == taskId);
+            // FTZ-Pool-Gerät: keine Folgeaufgabe. War dies die letzte offene Aufgabe, wird der
+            // Artikel stillgelegt (Ende-Datum = heute).
+            info = await _taskGeneration.FinalizePoolDeviceAsync(db, task.Article, DateTime.Today);
+            await db.SaveChangesAsync();
+        }
+        else if (createFollowUp)
+        {
             info = _taskGeneration.AddFollowUpTask(db, task, DateTime.Today)
                    ?? (task.Interval is null ? "Keine Folgeaufgabe: Die Aufgabe ist nicht mit einem Intervall verknüpft." : "Folgeaufgabe wurde angelegt.");
             await db.SaveChangesAsync();
