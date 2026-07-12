@@ -32,7 +32,7 @@
                                 Change="@((bool v) => ToggleOne(item.TaskId, v))" />
             </Template>
         </RadzenDataGridColumn>
-        <RadzenDataGridColumn TItem="TaskService.TaskListItem" Property="ArticleIdentification" Title="Identifikation" />
+        <RadzenDataGridColumn TItem="TaskService.TaskListItem" Property="ArticleIdentification" Title="Identifikation" Width="200px" />
         <RadzenDataGridColumn TItem="TaskService.TaskListItem" Property="ArticleBarcode" Title="Barcode" Width="120px" />
         <RadzenDataGridColumn TItem="TaskService.TaskListItem" Property="ArticleInventoryNumber" Title="Inv.-Nr." Width="110px" />
         <RadzenDataGridColumn TItem="TaskService.TaskListItem" Property="CategoryName" Title="Kategorie" Width="140px" />
@@ -136,8 +136,10 @@
         if (confirmed != true) return;
 
         // Bei intervallgebundenen Aufgaben: Nachfrage, ob der Folge-Workflow weiterlaufen soll.
+        // FTZ-Pool-Geräte kennen keine Folgeaufgaben – die Abfrage entfällt; stattdessen wird der
+        // Artikel serverseitig automatisch stillgelegt, sobald die letzte Aufgabe geschlossen ist.
         var createFollowUp = false;
-        if (item.HasInterval)
+        if (item.HasInterval && !item.IsPoolDevice)
         {
             createFollowUp = await Dialogs.Confirm(
                 "Soll automatisch eine Folgeaufgabe angelegt werden (Fälligkeit = heute + Prüfrhythmus)? " +

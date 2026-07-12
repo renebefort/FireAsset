@@ -20,10 +20,7 @@
         <textarea class="fa-input fa-textarea" rows="2" @bind="_model.Description"></textarea>
     </div>
 
-    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
-        <RadzenText TextStyle="TextStyle.H6" class="rz-my-0">Felder</RadzenText>
-        <RadzenButton Icon="add" Text="Feld hinzufügen" Size="ButtonSize.Small" Click="AddField" />
-    </RadzenStack>
+    <RadzenText TextStyle="TextStyle.H6" class="rz-my-0">Felder</RadzenText>
 
     <RadzenText TextStyle="TextStyle.Caption">
         Jedes Formular endet automatisch mit dem Prüfergebnis (Bestanden / Mangelhaft / Nicht bestanden) –
@@ -77,9 +74,12 @@
         </RadzenCard>
     }
 
-    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem" class="rz-mt-2">
-        <RadzenButton Text="Abbrechen" ButtonStyle="ButtonStyle.Light" Click="() => Dialogs.Close(false)" />
-        <RadzenButton Text="Speichern" ButtonStyle="ButtonStyle.Primary" Icon="save" Click="Save" Disabled="@_saving" />
+    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center" Gap="0.5rem" class="rz-mt-2">
+        <RadzenButton Icon="add" Text="Feld hinzufügen" Size="ButtonSize.Small" Click="AddField" />
+        <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem">
+            <RadzenButton Text="Abbrechen" ButtonStyle="ButtonStyle.Light" Click="() => Dialogs.Close(false)" />
+            <RadzenButton Text="Speichern" ButtonStyle="ButtonStyle.Primary" Icon="save" Click="Save" Disabled="@_saving" />
+        </RadzenStack>
     </RadzenStack>
 </RadzenStack>
 

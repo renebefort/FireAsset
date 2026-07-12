@@ -46,6 +46,13 @@ public class Article
 
     public bool IsActive { get; set; } = true;
 
+    /// <summary>
+    /// FTZ-Pool-Gerät: einmaliger Prüfzyklus ohne Folgeaufgaben. Beim Abschluss einer Aufgabe
+    /// wird keine Folgeaufgabe erzeugt; ist die letzte Aufgabe erledigt/stillgelegt, wird der
+    /// Artikel automatisch stillgelegt (inaktiv, Ende-Datum = Datum der letzten Aufgabe).
+    /// </summary>
+    public bool IsPoolDevice { get; set; }
+
     /// <summary>Aktueller Prüfstatus = Ergebnis des zuletzt erstellten Protokolls.</summary>
     public InspectionResult? CurrentInspectionStatus { get; set; }
 

@@ -81,6 +81,30 @@ public class TaskGenerationService
     }
 
     /// <summary>
+    /// FTZ-Pool-Gerät: legt bewusst KEINE Folgeaufgabe an. Existiert nach dem Schließen der aktuellen
+    /// Aufgabe keine offene Aufgabe mehr, wird der Artikel stillgelegt (inaktiv, Ende-Datum =
+    /// Abschlussdatum) und ein Hinweistext zurückgegeben; andernfalls null (es sind noch Aufgaben offen).
+    /// Erwartet, dass die aktuelle Aufgabe bereits als erledigt/stillgelegt persistiert wurde (gleiche
+    /// Transaktion), damit die Restabfrage den Endzustand widerspiegelt.
+    /// </summary>
+    public async Task<string?> FinalizePoolDeviceAsync(AppDbContext db, Article article, DateTime closedDate)
+    {
+        var hasOpenTasks = await db.InspectionTasks.AnyAsync(t =>
+            t.ArticleId == article.Id
+            && t.Status != InspectionTaskStatus.Erledigt
+            && t.Status != InspectionTaskStatus.Stillgelegt);
+        if (hasOpenTasks)
+        {
+            return null;
+        }
+
+        article.IsActive = false;
+        article.EndDate = closedDate.Date;
+        return $"FTZ-Pool-Gerät „{article.Identification}“: letzte Prüfaufgabe abgeschlossen – " +
+               $"Artikel wurde automatisch stillgelegt (Ende-Datum {closedDate:dd.MM.yyyy}).";
+    }
+
+    /// <summary>
     /// Fügt für alle aktiven Artikel der Kategorie eines Intervalls fehlende Aufgaben hinzu (ohne Save),
     /// z. B. nachdem ein Intervall neu angelegt oder (wieder) mit Formular aktiviert wurde.
     /// Gibt die Anzahl der erzeugten Aufgaben zurück.

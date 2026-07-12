@@ -94,6 +94,8 @@
         (erste Fälligkeit = Anschaffungsdatum + Rhythmus). Es wird <strong>keine</strong> Aufgabe angelegt,
         wenn der Artikel inaktiv ist oder die Fälligkeit nach dem <strong>Ende-Datum</strong> bzw. dem
         <strong>Ausmusterungsdatum</strong> liegt – Sie erhalten dann jeweils einen Hinweis.
+        Für Geräte aus einem externen Pool gibt es zusätzlich das Kennzeichen
+        <strong>„FTZ-Pool-Gerät"</strong> (siehe Abschnitt 8a).
     </RadzenText>
     <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-2">
         <strong>Artikel kopieren:</strong> Über die Aktion <em>Kopieren</em> legen Sie ein weiteres, gleichartiges
@@ -124,6 +126,7 @@
         Nach dem Speichern entsteht ein Protokoll, die Aufgabe gilt als erledigt und die
         <strong>Folgeaufgabe</strong> wird automatisch angelegt (Fälligkeit = Erledigt-Datum + Rhythmus).
         Der Prüfstatus des Artikels entspricht dem Ergebnis der zuletzt erfassten Prüfung.
+        <em>Ausnahme:</em> Bei <strong>FTZ-Pool-Geräten</strong> wird keine Folgeaufgabe erzeugt (siehe Abschnitt 8a).
     </RadzenText>
     <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-2">
         <strong>Mehrere gleichartige Prüfungen:</strong> Markieren Sie mehrere Aufgaben über die Kontrollkästchen
@@ -136,6 +139,32 @@
         Bei intervallgebundenen Aufgaben fragt das System nach, ob automatisch eine <strong>Folgeaufgabe</strong>
         angelegt werden soll (Fälligkeit = heute + Rhythmus), damit der Prüf-Workflow weiterläuft.
         Stillgelegte Aufgaben blenden Sie über <strong>„Abgeschlossene anzeigen"</strong> wieder ein.
+    </RadzenText>
+</RadzenCard>
+
+<RadzenCard class="rz-mb-3">
+    <RadzenText TextStyle="TextStyle.H6">8a. Sonderfall: FTZ-Pool-Geräte</RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2">
+        Manche Geräte gehören nicht uns dauerhaft, sondern kommen im <strong>Pool-Betrieb von einem externen
+        Dienstleister (FTZ)</strong> zu uns. Solche Geräte durchlaufen den Prüfzyklus nur <strong>einmal</strong>
+        und werden anschließend nicht dauerhaft weiter überwacht. Dafür gibt es beim Anlegen eines Artikels das
+        Kennzeichen <strong>„FTZ-Pool-Gerät"</strong>.
+    </RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-2">
+        Ist das Kennzeichen gesetzt, verhält sich der Artikel abweichend:
+    </RadzenText>
+    <ul>
+        <li>Beim Anlegen werden die Aufgaben <strong>wie gewohnt</strong> aus Kategorie und Intervallen erzeugt.</li>
+        <li>Wird eine Aufgabe abgeschlossen, entsteht <strong>keine Folgeaufgabe</strong> (der Zyklus läuft nicht weiter).</li>
+        <li>Ist die <strong>letzte</strong> offene Aufgabe erledigt (oder stillgelegt), wird der Artikel
+            <strong>automatisch inaktiv</strong> gesetzt und sein <strong>Ende-Datum</strong> auf das Datum der
+            letzten Aufgabe gesetzt. Sie erhalten dazu einen Hinweis.</li>
+        <li>Beim <em>Stilllegen</em> einer Aufgabe eines Pool-Geräts entfällt die Nachfrage nach einer Folgeaufgabe.</li>
+    </ul>
+    <RadzenText TextStyle="TextStyle.Body2">
+        In der Artikelliste (Spalte <em>FTZ-Pool</em>, ggf. über das Spalten-Symbol einblenden) und in der
+        CSV-Inventarliste ist erkennbar, welche Artikel Pool-Geräte sind. Ein normaler Artikel <em>ohne</em>
+        dieses Kennzeichen erhält weiterhin nach jedem Abschluss automatisch eine Folgeaufgabe.
     </RadzenText>
 </RadzenCard>
 
