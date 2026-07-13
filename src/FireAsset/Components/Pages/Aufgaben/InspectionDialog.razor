@@ -56,6 +56,21 @@ else
             </div>
         }
 
+        @if (_yesNoCount > 1)
+        {
+            @* Sammelaktion: alle Ja/Nein-Fragen auf einmal umstellen (Default ist "Nein"). *@
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem"
+                         class="rz-p-2" Style="background:#f3f4f6; border-radius:6px;">
+                <RadzenText TextStyle="TextStyle.Body2" class="rz-my-0" Style="font-weight:600; margin-right:auto;">
+                    Alle Ja/Nein-Fragen (@_yesNoCount)
+                </RadzenText>
+                <RadzenButton Text="Alle auf Ja" Icon="done_all" ButtonStyle="ButtonStyle.Success" Size="ButtonSize.Small"
+                              Click="() => SetAllYesNo(true)" />
+                <RadzenButton Text="Alle auf Nein" Icon="remove_done" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                              Click="() => SetAllYesNo(false)" />
+            </RadzenStack>
+        }
+
         @foreach (var entry in _entries)
         {
             <div>
@@ -152,6 +167,7 @@ else
     private int? _chosenFormId;
     private List<Form> _forms = new();
     private string? _locationPath;
+    private int _yesNoCount;
 
     protected override async Task OnInitializedAsync()
     {
@@ -187,6 +203,16 @@ else
         if (_model is not null)
         {
             _entries = _model.Fields.Select(f => new FieldEntry { Field = f }).ToList();
+            _yesNoCount = _entries.Count(e => e.Field.FieldType == FieldType.YesNo);
+        }
+    }
+
+    /// <summary>Stellt alle Ja/Nein-Fragen gesammelt auf den gewünschten Wert um.</summary>
+    private void SetAllYesNo(bool value)
+    {
+        foreach (var entry in _entries.Where(e => e.Field.FieldType == FieldType.YesNo))
+        {
+            entry.Bool = value;
         }
     }
 
