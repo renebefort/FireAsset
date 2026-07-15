@@ -141,23 +141,31 @@ app.MapGet("/export/inventory.csv", async (ExportService export, int? category, 
 
 // Anhang eines Protokoll-Felds (PDF/Bild) inline ausliefern – nur für angemeldete Benutzer.
 // Inline (ohne Dateiname), damit Bilder im <img> gerendert und PDFs im Browser geöffnet werden.
-app.MapGet("/protokolle/{protocolId:int}/anhang/{fieldId:int}", async (int protocolId, int fieldId, ProtocolService protocols) =>
+app.MapGet("/protokolle/{protocolId:int}/anhang/{fieldId:int}", async (int protocolId, int fieldId, ProtocolService protocols, HttpContext http) =>
 {
     var att = await protocols.GetAttachmentAsync(protocolId, fieldId);
-    return att is null ? Results.NotFound() : Results.File(att.Data, att.ContentType);
+    if (att is null) return Results.NotFound();
+    // Kein MIME-Sniffing: der Browser rendert die Datei ausschließlich als den deklarierten Typ
+    // (verhindert, dass z. B. eine als Bild deklarierte Datei als HTML/Skript interpretiert wird).
+    http.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    return Results.File(att.Data, att.ContentType);
 }).RequireAuthorization();
 
 // Artikel-Foto (Detailvariante bzw. Grid-Thumbnail) inline ausliefern – nur für angemeldete Benutzer.
-app.MapGet("/artikel/{id:int}/foto", async (int id, ArticleService articles) =>
+app.MapGet("/artikel/{id:int}/foto", async (int id, ArticleService articles, HttpContext http) =>
 {
     var photo = await articles.GetPhotoAsync(id, thumbnail: false);
-    return photo is null ? Results.NotFound() : Results.File(photo.Data, photo.ContentType);
+    if (photo is null) return Results.NotFound();
+    http.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    return Results.File(photo.Data, photo.ContentType);
 }).RequireAuthorization();
 
-app.MapGet("/artikel/{id:int}/foto/thumb", async (int id, ArticleService articles) =>
+app.MapGet("/artikel/{id:int}/foto/thumb", async (int id, ArticleService articles, HttpContext http) =>
 {
     var photo = await articles.GetPhotoAsync(id, thumbnail: true);
-    return photo is null ? Results.NotFound() : Results.File(photo.Data, photo.ContentType);
+    if (photo is null) return Results.NotFound();
+    http.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    return Results.File(photo.Data, photo.ContentType);
 }).RequireAuthorization();
 
 app.Run();

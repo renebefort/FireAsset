@@ -137,8 +137,23 @@ public class InspectionService
             ? await _taskGeneration.FinalizePoolDeviceAsync(db, task.Article, completedDate)
             : _taskGeneration.AddFollowUpTask(db, task, completedDate);
 
-        await db.SaveChangesAsync();
-        await tx.CommitAsync();
+        try
+        {
+            await db.SaveChangesAsync();
+            await tx.CommitAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Artikel wurde zwischenzeitlich anderweitig geändert (Version-Token). Transaktion wird
+            // beim Dispose zurückgerollt; die Aufgabe bleibt offen.
+            return ExecuteResult.Fail(
+                "Der Artikel wurde zwischenzeitlich geändert. Bitte den Dialog erneut öffnen und die Prüfung wiederholen.");
+        }
+        catch (DbUpdateException)
+        {
+            // z. B. verletzte Eindeutigkeit oder DB-Fehler: sauber melden statt den Circuit abstürzen zu lassen.
+            return ExecuteResult.Fail("Die Prüfung konnte nicht gespeichert werden. Bitte erneut versuchen.");
+        }
         return ExecuteResult.Success(followUpInfo);
     }
 
@@ -176,7 +191,14 @@ public class InspectionService
             Attachments = BuildAttachments(attachments),
         });
         article.CurrentInspectionStatus = result;
-        await db.SaveChangesAsync();
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            return ExecuteResult.Fail("Die Prüfung konnte nicht gespeichert werden. Bitte erneut versuchen.");
+        }
         return ExecuteResult.Success(null);
     }
 

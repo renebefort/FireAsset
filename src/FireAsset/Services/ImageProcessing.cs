@@ -14,15 +14,29 @@ public static class ImageProcessing
     private const int MaxDetailEdge = 1024;
     private const int MaxThumbEdge = 128;
 
+    /// <summary>
+    /// Obergrenze für die dekodierte Pixelzahl (~48 Megapixel). Schützt vor „Decompression-Bomben“:
+    /// kleine, gültige Dateien, die zu riesigen Bildmaßen dekodieren und den Arbeitsspeicher sprengen.
+    /// </summary>
+    private const long MaxPixels = 48L * 1_000_000;
+
     public record ProcessedImage(byte[] Detail, byte[] Thumbnail);
 
     /// <summary>
-    /// Verkleinert das Eingabebild. Gibt <c>null</c> zurück, wenn die Daten kein lesbares Bild sind.
+    /// Verkleinert das Eingabebild. Gibt <c>null</c> zurück, wenn die Daten kein lesbares Bild sind
+    /// oder die Bildmaße die zulässige Obergrenze überschreiten.
     /// </summary>
     public static ProcessedImage? TryProcess(byte[] input)
     {
         try
         {
+            // Nur den Header lesen und die Maße prüfen, BEVOR das Vollbild dekodiert wird.
+            var info = Image.Identify(input);
+            if ((long)info.Width * info.Height > MaxPixels)
+            {
+                return null;
+            }
+
             using var image = Image.Load(input);
             var detail = Encode(image, MaxDetailEdge, quality: 82);
             var thumb = Encode(image, MaxThumbEdge, quality: 75);

@@ -36,7 +36,9 @@
             <RadzenPanelMenuItem Text="Protokolle" Icon="fact_check" Path="protokolle" />
             <RadzenPanelMenuItem Text="Export" Icon="file_download" Path="export" />
             <RadzenPanelMenuItem Text="Stammdaten" Icon="settings">
-                <RadzenPanelMenuItem Text="Benutzer" Icon="group" Path="stammdaten/benutzer" />
+                <AuthorizeView Roles="Administrator">
+                    <RadzenPanelMenuItem Text="Benutzer" Icon="group" Path="stammdaten/benutzer" />
+                </AuthorizeView>
                 <RadzenPanelMenuItem Text="Standorte" Icon="place" Path="stammdaten/standorte" />
                 <RadzenPanelMenuItem Text="Formulare" Icon="description" Path="stammdaten/formulare" />
                 <RadzenPanelMenuItem Text="Kategorien & Intervalle" Icon="category" Path="stammdaten/kategorien" />
