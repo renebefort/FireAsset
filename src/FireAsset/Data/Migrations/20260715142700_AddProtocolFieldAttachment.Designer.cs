@@ -4,6 +4,7 @@ using FireAsset.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FireAsset.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260715142700_AddProtocolFieldAttachment")]
+    partial class AddProtocolFieldAttachment
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -98,10 +101,6 @@ namespace FireAsset.Data.Migrations
                     b.Property<DateTime?>("ProductionDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<decimal?>("PurchasePrice")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<string>("SerialNumber")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
@@ -133,44 +132,6 @@ namespace FireAsset.Data.Migrations
                     b.ToTable("Articles");
                 });
 
-            modelBuilder.Entity("FireAsset.Data.Entities.ArticlePhoto", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("ArticleId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ContentType")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<byte[]>("Data")
-                        .IsRequired()
-                        .HasColumnType("varbinary(max)");
-
-                    b.Property<long>("SizeBytes")
-                        .HasColumnType("bigint");
-
-                    b.Property<byte[]>("Thumbnail")
-                        .IsRequired()
-                        .HasColumnType("varbinary(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ArticleId")
-                        .IsUnique();
-
-                    b.ToTable("ArticlePhotos");
-                });
-
             modelBuilder.Entity("FireAsset.Data.Entities.Category", b =>
                 {
                     b.Property<int>("Id")
@@ -178,9 +139,6 @@ namespace FireAsset.Data.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int?>("ContactUserId")
-                        .HasColumnType("int");
 
                     b.Property<string>("Description")
                         .HasMaxLength(1000)
@@ -199,8 +157,6 @@ namespace FireAsset.Data.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ContactUserId");
 
                     b.HasIndex("Name")
                         .IsUnique();
@@ -333,9 +289,6 @@ namespace FireAsset.Data.Migrations
                         .HasColumnType("int");
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsEntryControl")
                         .HasColumnType("bit");
 
                     b.Property<string>("Name")
@@ -642,25 +595,6 @@ namespace FireAsset.Data.Migrations
                     b.Navigation("Location");
 
                     b.Navigation("ModifiedByUser");
-                });
-
-            modelBuilder.Entity("FireAsset.Data.Entities.ArticlePhoto", b =>
-                {
-                    b.HasOne("FireAsset.Data.Entities.Article", null)
-                        .WithMany()
-                        .HasForeignKey("ArticleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("FireAsset.Data.Entities.Category", b =>
-                {
-                    b.HasOne("FireAsset.Data.Entities.User", "ContactUser")
-                        .WithMany()
-                        .HasForeignKey("ContactUserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("ContactUser");
                 });
 
             modelBuilder.Entity("FireAsset.Data.Entities.Form", b =>

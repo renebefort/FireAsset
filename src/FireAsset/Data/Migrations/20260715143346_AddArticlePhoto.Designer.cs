@@ -4,6 +4,7 @@ using FireAsset.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FireAsset.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260715143346_AddArticlePhoto")]
+    partial class AddArticlePhoto
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -98,10 +101,6 @@ namespace FireAsset.Data.Migrations
                     b.Property<DateTime?>("ProductionDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<decimal?>("PurchasePrice")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<string>("SerialNumber")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
@@ -179,9 +178,6 @@ namespace FireAsset.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("ContactUserId")
-                        .HasColumnType("int");
-
                     b.Property<string>("Description")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
@@ -199,8 +195,6 @@ namespace FireAsset.Data.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ContactUserId");
 
                     b.HasIndex("Name")
                         .IsUnique();
@@ -333,9 +327,6 @@ namespace FireAsset.Data.Migrations
                         .HasColumnType("int");
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsEntryControl")
                         .HasColumnType("bit");
 
                     b.Property<string>("Name")
@@ -651,16 +642,6 @@ namespace FireAsset.Data.Migrations
                         .HasForeignKey("ArticleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("FireAsset.Data.Entities.Category", b =>
-                {
-                    b.HasOne("FireAsset.Data.Entities.User", "ContactUser")
-                        .WithMany()
-                        .HasForeignKey("ContactUserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("ContactUser");
                 });
 
             modelBuilder.Entity("FireAsset.Data.Entities.Form", b =>

@@ -20,9 +20,11 @@ public class AppDbContext : DbContext
     public DbSet<FormVersion> FormVersions => Set<FormVersion>();
     public DbSet<FormField> FormFields => Set<FormField>();
     public DbSet<Article> Articles => Set<Article>();
+    public DbSet<ArticlePhoto> ArticlePhotos => Set<ArticlePhoto>();
     public DbSet<InspectionTask> InspectionTasks => Set<InspectionTask>();
     public DbSet<InspectionProtocol> InspectionProtocols => Set<InspectionProtocol>();
     public DbSet<ProtocolFieldValue> ProtocolFieldValues => Set<ProtocolFieldValue>();
+    public DbSet<ProtocolFieldAttachment> ProtocolFieldAttachments => Set<ProtocolFieldAttachment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -61,6 +63,11 @@ public class AppDbContext : DbContext
             e.Property(c => c.Description).HasMaxLength(1000);
             e.Property(c => c.Version).IsConcurrencyToken();
             e.HasIndex(c => c.Name).IsUnique();
+            // Ansprechpartner: Löschung des Benutzers hebt nur die Zuordnung auf (kein Blockieren).
+            e.HasOne(c => c.ContactUser)
+                .WithMany()
+                .HasForeignKey(c => c.ContactUserId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<InspectionInterval>(e =>
@@ -123,6 +130,7 @@ public class AppDbContext : DbContext
             e.Property(a => a.ManufacturerNumber).HasMaxLength(100);
             e.Property(a => a.InventoryNumber).HasMaxLength(100);
             e.Property(a => a.Barcode).HasMaxLength(100);
+            e.Property(a => a.PurchasePrice).HasPrecision(18, 2);
             e.Property(a => a.LegalBasis).HasMaxLength(300);
             e.Property(a => a.Description).HasMaxLength(2000);
             e.Property(a => a.CurrentInspectionStatus).HasConversion<int>();
@@ -149,6 +157,7 @@ public class AppDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(a => a.ModifiedByUserId)
                 .OnDelete(DeleteBehavior.ClientSetNull);
+            e.Ignore(a => a.ContactName);
         });
 
         modelBuilder.Entity<InspectionTask>(e =>
@@ -206,6 +215,36 @@ public class AppDbContext : DbContext
             e.HasOne(v => v.FormField)
                 .WithMany(f => f.Values)
                 .HasForeignKey(v => v.FormFieldId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ArticlePhoto>(e =>
+        {
+            e.Property(p => p.ContentType).HasMaxLength(150).IsRequired();
+            e.Property(p => p.Data).IsRequired();
+            e.Property(p => p.Thumbnail).IsRequired();
+            // Ein Foto je Artikel; wird beim Löschen des Artikels mitgelöscht.
+            e.HasIndex(p => p.ArticleId).IsUnique();
+            e.HasOne<Article>()
+                .WithMany()
+                .HasForeignKey(p => p.ArticleId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ProtocolFieldAttachment>(e =>
+        {
+            e.Property(a => a.FileName).HasMaxLength(260).IsRequired();
+            e.Property(a => a.ContentType).HasMaxLength(150).IsRequired();
+            e.Property(a => a.Data).IsRequired();
+            // Pro Protokoll und Feld genau eine Datei (verhindert Doppel-Uploads).
+            e.HasIndex(a => new { a.ProtocolId, a.FormFieldId }).IsUnique();
+            e.HasOne(a => a.Protocol)
+                .WithMany(p => p.Attachments)
+                .HasForeignKey(a => a.ProtocolId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(a => a.FormField)
+                .WithMany()
+                .HasForeignKey(a => a.FormFieldId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }

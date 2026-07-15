@@ -13,6 +13,11 @@ public class Category
 
     public bool IsActive { get; set; } = true;
 
+    /// <summary>Optionaler Ansprechpartner der Kategorie (Benutzer). Wird in den Grids angezeigt.</summary>
+    public int? ContactUserId { get; set; }
+
+    public User? ContactUser { get; set; }
+
     /// <summary>Optimistisches Concurrency-Token (wird bei jeder Änderung erhöht).</summary>
     public int Version { get; set; }
 

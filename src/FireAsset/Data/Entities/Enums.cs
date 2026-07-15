@@ -20,6 +20,18 @@ public enum FieldType
 
     /// <summary>Datum.</summary>
     Date = 5,
+
+    /// <summary>Reiner Hinweistext (nur Anzeige des Bezeichnungstexts, keine Eingabe, kein Wert).</summary>
+    Hinweistext = 6,
+
+    /// <summary>Abschnitts-Überschrift zur Gliederung (nur Anzeige, keine Eingabe, kein Wert).</summary>
+    Ueberschrift = 7,
+
+    /// <summary>Externer Link (z. B. auf ein PDF im SharePoint). Wird als Text gespeichert.</summary>
+    Url = 8,
+
+    /// <summary>Datei-Upload (PDF oder Bild); die Datei wird als Blob in der Datenbank abgelegt.</summary>
+    Attachment = 9,
 }
 
 /// <summary>Abschließendes Prüfergebnis eines Protokolls.</summary>

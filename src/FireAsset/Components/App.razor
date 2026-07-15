@@ -18,6 +18,13 @@
     <Routes @rendermode="RenderModeForPage" />
     <ReconnectModal />
     <script src="_content/Radzen.Blazor/Radzen.Blazor.js"></script>
+    <script>
+        // Viewport-Check für AdaptiveDialogService: derselbe Breakpoint wie das
+        // Vollbild-Sheet in app.css (<= 768px => Draggable/Resizable aus).
+        window.faViewport = {
+            isCompact: () => window.matchMedia('(max-width: 768px)').matches
+        };
+    </script>
     <script src="@Assets["_framework/blazor.web.js"]"></script>
 </body>
 

@@ -49,6 +49,9 @@ builder.Services.AddScoped<ExportService>();
 builder.Services.AddSingleton<LoginThrottleService>();
 builder.Services.AddScoped<ChangelogService>();
 
+// Adaptiver Dialog-Wrapper: deaktiviert Draggable/Resizable auf <= 768px (Touch/Tablet).
+builder.Services.AddScoped<AdaptiveDialogService>();
+
 // Authentifizierung: schlanke Cookie-Auth.
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -130,6 +133,27 @@ app.MapGet("/export/inventory.csv", async (ExportService export, int? category, 
 {
     var bytes = await export.BuildInventoryCsvAsync(category, location, active);
     return Results.File(bytes, "text/csv", "inventarliste.csv");
+}).RequireAuthorization();
+
+// Anhang eines Protokoll-Felds (PDF/Bild) inline ausliefern – nur für angemeldete Benutzer.
+// Inline (ohne Dateiname), damit Bilder im <img> gerendert und PDFs im Browser geöffnet werden.
+app.MapGet("/protokolle/{protocolId:int}/anhang/{fieldId:int}", async (int protocolId, int fieldId, ProtocolService protocols) =>
+{
+    var att = await protocols.GetAttachmentAsync(protocolId, fieldId);
+    return att is null ? Results.NotFound() : Results.File(att.Data, att.ContentType);
+}).RequireAuthorization();
+
+// Artikel-Foto (Detailvariante bzw. Grid-Thumbnail) inline ausliefern – nur für angemeldete Benutzer.
+app.MapGet("/artikel/{id:int}/foto", async (int id, ArticleService articles) =>
+{
+    var photo = await articles.GetPhotoAsync(id, thumbnail: false);
+    return photo is null ? Results.NotFound() : Results.File(photo.Data, photo.ContentType);
+}).RequireAuthorization();
+
+app.MapGet("/artikel/{id:int}/foto/thumb", async (int id, ArticleService articles) =>
+{
+    var photo = await articles.GetPhotoAsync(id, thumbnail: true);
+    return photo is null ? Results.NotFound() : Results.File(photo.Data, photo.ContentType);
 }).RequireAuthorization();
 
 app.Run();

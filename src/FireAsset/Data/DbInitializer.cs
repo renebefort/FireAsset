@@ -34,6 +34,7 @@ public static class DbInitializer
             LastName = lastName,
             Email = email,
             IsActive = true,
+            IsAdmin = true,
             CreatedAt = DateTime.UtcNow,
         };
         admin.PasswordHash = new PasswordHasher<User>().HashPassword(admin, password);
