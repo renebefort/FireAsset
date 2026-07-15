@@ -55,6 +55,7 @@
             <Template Context="a">@a.Location?.Barcode</Template>
         </RadzenDataGridColumn>
         <RadzenDataGridColumn TItem="Article" Property="ContactName" Title="Ansprechpartner" Width="160px" />
+        <RadzenDataGridColumn TItem="Article" Property="EndDate" Title="Ende-Datum" Width="120px" FormatString="{0:dd.MM.yyyy}" />
         <RadzenDataGridColumn TItem="Article" Title="Prüfstatus" Width="130px" Sortable="false" Filterable="false">
             <Template Context="a">
                 <RadzenBadge Text="@InspectionResultInfo.Label(a.CurrentInspectionStatus)"

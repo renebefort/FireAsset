@@ -11,6 +11,9 @@ public class ExportService
 {
     private readonly IDbContextFactory<AppDbContext> _factory;
 
+    // Deutsches Zahlenformat (Dezimalkomma) für den Einkaufspreis, passend zum de-DE-Excel.
+    private static readonly CultureInfo Germany = CultureInfo.GetCultureInfo("de-DE");
+
     public ExportService(IDbContextFactory<AppDbContext> factory)
     {
         _factory = factory;
@@ -35,8 +38,9 @@ public class ExportService
         var header = new[]
         {
             "Identifikation", "Hersteller", "Typ", "Seriennummer", "Herstellernummer",
-            "Inventarnummer", "Barcode", "Kategorie", "Standort", "Anschaffungsdatum",
-            "Ende-Datum", "Status", "FTZ-Pool", "Prüfstatus",
+            "Inventarnummer", "Barcode", "Einkaufspreis", "Kategorie", "Standort",
+            "Anschaffungsdatum", "Produktionsdatum", "Ausmusterung", "Ende-Datum",
+            "Status", "FTZ-Pool", "Prüfstatus",
         };
         sb.AppendLine(string.Join(';', header.Select(Escape)));
 
@@ -51,9 +55,12 @@ public class ExportService
                 a.ManufacturerNumber ?? "",
                 a.InventoryNumber ?? "",
                 a.Barcode ?? "",
+                a.PurchasePrice?.ToString("0.00", Germany) ?? "",
                 a.Category?.Name ?? "",
                 a.Location?.Name ?? "",
                 a.AcquisitionDate.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture),
+                a.ProductionDate?.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture) ?? "",
+                a.DecommissionDate?.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture) ?? "",
                 a.EndDate?.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture) ?? "",
                 a.IsActive ? "aktiv" : "inaktiv",
                 a.IsPoolDevice ? "ja" : "nein",
