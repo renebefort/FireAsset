@@ -36,7 +36,8 @@ public class TaskService
         string? LocationBarcode,
         string IntervalName,
         string FormName,
-        DateTime? ArticleEndDate);
+        DateTime? ArticleEndDate,
+        string? ContactName);
 
     public async Task<List<TaskListItem>> GetTasksAsync(bool includeDone)
     {
@@ -79,7 +80,10 @@ public class TaskService
                 t.Article.Location != null ? t.Article.Location.Barcode : null,
                 t.Interval != null ? t.Interval.Name : "(manuell)",
                 t.Form.Name,
-                t.Article.EndDate))
+                t.Article.EndDate,
+                t.Article.Category != null && t.Article.Category.ContactUser != null
+                    ? t.Article.Category.ContactUser.FirstName + " " + t.Article.Category.ContactUser.LastName
+                    : null))
             .ToListAsync();
     }
 

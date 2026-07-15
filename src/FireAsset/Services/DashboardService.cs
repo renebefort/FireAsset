@@ -20,7 +20,7 @@ public class DashboardService
         int ProtocolsTotal,
         int StatusBestanden, int StatusMangelhaft, int StatusNichtBestanden, int StatusOhne);
 
-    public record DueTask(int TaskId, DateTime DueDate, string ArticleIdentification, string FormName, bool Overdue);
+    public record DueTask(int TaskId, DateTime DueDate, string ArticleIdentification, string FormName, bool Overdue, string? ContactName);
 
     public async Task<Stats> GetStatsAsync()
     {
@@ -58,7 +58,10 @@ public class DashboardService
                         && t.Article.IsActive)
             .OrderBy(t => t.DueDate)
             .Take(take)
-            .Select(t => new DueTask(t.Id, t.DueDate, t.Article.Identification, t.Form.Name, t.DueDate < today))
+            .Select(t => new DueTask(t.Id, t.DueDate, t.Article.Identification, t.Form.Name, t.DueDate < today,
+                t.Article.Category != null && t.Article.Category.ContactUser != null
+                    ? t.Article.Category.ContactUser.FirstName + " " + t.Article.Category.ContactUser.LastName
+                    : null))
             .ToListAsync();
     }
 }

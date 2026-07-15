@@ -13,6 +13,16 @@
         <textarea class="fa-input fa-textarea" rows="2" @bind="_category.Description"></textarea>
     </div>
 
+    <div>
+        <label class="fa-label">Ansprechpartner</label>
+        <RadzenDropDown @bind-Value="_category.ContactUserId"
+                        Data="@_contacts" TextProperty="FullName" ValueProperty="Id"
+                        AllowFiltering="true" FilterAsYouType="true" AllowClear="true"
+                        FilterOperator="StringFilterOperator.Contains"
+                        FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                        Placeholder="(kein Ansprechpartner)" Style="width: 100%" />
+    </div>
+
     <label class="fa-checkbox">
         <input type="checkbox" @bind="_category.IsActive" /> Aktiv
     </label>
@@ -28,6 +38,7 @@
 
     private bool _saving;
     private Category _category = new() { IsActive = true };
+    private List<User> _contacts = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -37,6 +48,7 @@
             var existing = all.FirstOrDefault(c => c.Id == id);
             if (existing is not null) _category = existing;
         }
+        _contacts = await CategoryService.GetSelectableContactsAsync(_category.ContactUserId);
     }
 
     private async Task Save()

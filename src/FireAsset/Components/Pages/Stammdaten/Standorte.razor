@@ -2,7 +2,7 @@
 @attribute [Authorize]
 @inject LocationService LocationService
 @inject NotificationService Notifications
-@inject DialogService Dialogs
+@inject AdaptiveDialogService Dialogs
 
 <PageTitle>Standorte · Asset Manager</PageTitle>
 
@@ -12,7 +12,7 @@
 </RadzenStack>
 
 <RadzenDataGrid Data="@_rows" TItem="LocationRow" AllowSorting="true"
-                AllowFiltering="true" FilterMode="FilterMode.Advanced" GridLines="DataGridGridLines.Both" AllowColumnResize="true"
+                AllowFiltering="true" FilterMode="FilterMode.CheckBoxList" GridLines="DataGridGridLines.Both" AllowColumnResize="true"
                 AllowColumnPicking="true" AllowPaging="true" PageSize="20"
                 PageSizeOptions="@(new int[] { 10, 20, 50, 100 })" ShowPagingSummary="true"
                 RowDoubleClick="@(args => OpenEditor(args.Data!.Id))">
