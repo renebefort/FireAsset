@@ -170,15 +170,32 @@ public class CategoryService
         return (null, created);
     }
 
-    public async Task DeleteIntervalAsync(int id)
+    /// <summary>
+    /// Löscht ein Intervall. Blockiert, wenn noch offene Aufgaben daran hängen – deren Prüfkette
+    /// würde sonst stillschweigend abreißen (IntervalId wird auf NULL gesetzt, es entsteht keine
+    /// Folgeaufgabe mehr). Gibt bei Blockade eine Fehlermeldung zurück, sonst null.
+    /// </summary>
+    public async Task<string?> DeleteIntervalAsync(int id)
     {
         await using var db = await _factory.CreateDbContextAsync();
+
+        var hasOpenTasks = await db.InspectionTasks.AnyAsync(t =>
+            t.IntervalId == id
+            && t.Status != InspectionTaskStatus.Erledigt
+            && t.Status != InspectionTaskStatus.Stillgelegt);
+        if (hasOpenTasks)
+        {
+            return "Das Intervall hat noch offene Aufgaben und kann nicht gelöscht werden. " +
+                   "Deaktivieren Sie es stattdessen – bestehende Aufgaben bleiben erhalten, es werden keine neuen erzeugt.";
+        }
+
         var interval = await db.InspectionIntervals.FindAsync(id);
         if (interval is not null)
         {
             db.InspectionIntervals.Remove(interval);
             await db.SaveChangesAsync();
         }
+        return null;
     }
 
     /// <summary>

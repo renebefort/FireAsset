@@ -61,36 +61,38 @@
 
     private async Task Save()
     {
+        // Guard vor der ersten asynchronen Prüfung setzen, damit ein Doppelklick nicht zwei
+        // Speichervorgänge (und damit doppelte Benutzer) auslösen kann.
         if (_saving) return;
-        if (string.IsNullOrWhiteSpace(_user.FirstName) || string.IsNullOrWhiteSpace(_user.LastName))
-        {
-            Notify("Vor- und Nachname sind erforderlich.");
-            return;
-        }
-        if (string.IsNullOrWhiteSpace(_user.Email) || !_user.Email.Contains('@'))
-        {
-            Notify("Bitte eine gültige E-Mail angeben.");
-            return;
-        }
-        if (await UserService.EmailExistsAsync(_user.Email, _isNew ? null : _user.Id))
-        {
-            Notify("Diese E-Mail wird bereits verwendet.");
-            return;
-        }
-        if (_isNew && string.IsNullOrWhiteSpace(_password))
-        {
-            Notify("Für einen neuen Benutzer ist ein Passwort erforderlich.");
-            return;
-        }
-        if (!string.IsNullOrWhiteSpace(_password) && _password.Length < UserService.MinPasswordLength)
-        {
-            Notify(UserService.PasswordPolicyMessage);
-            return;
-        }
-
         _saving = true;
         try
         {
+            if (string.IsNullOrWhiteSpace(_user.FirstName) || string.IsNullOrWhiteSpace(_user.LastName))
+            {
+                Notify("Vor- und Nachname sind erforderlich.");
+                return;
+            }
+            if (string.IsNullOrWhiteSpace(_user.Email) || !_user.Email.Contains('@'))
+            {
+                Notify("Bitte eine gültige E-Mail angeben.");
+                return;
+            }
+            if (await UserService.EmailExistsAsync(_user.Email, _isNew ? null : _user.Id))
+            {
+                Notify("Diese E-Mail wird bereits verwendet.");
+                return;
+            }
+            if (_isNew && string.IsNullOrWhiteSpace(_password))
+            {
+                Notify("Für einen neuen Benutzer ist ein Passwort erforderlich.");
+                return;
+            }
+            if (!string.IsNullOrWhiteSpace(_password) && _password.Length < UserService.MinPasswordLength)
+            {
+                Notify(UserService.PasswordPolicyMessage);
+                return;
+            }
+
             var error = _isNew
                 ? await UserService.CreateAsync(_user, _password)
                 : await UserService.UpdateAsync(_user, string.IsNullOrWhiteSpace(_password) ? null : _password);

@@ -21,7 +21,7 @@ public class TaskGenerationService
     /// Fügt für alle aktiven Intervalle der Kategorie des Artikels Aufgaben hinzu (ohne Save).
     /// Gibt Meldungen zu übersprungenen Intervallen zurück.
     /// </summary>
-    public async Task<List<string>> AddInitialTasksAsync(AppDbContext db, Article article)
+    public async Task<List<string>> AddInitialTasksAsync(AppDbContext db, Article article, bool includeEntryControl = true)
     {
         var messages = new List<string>();
         var intervals = await db.InspectionIntervals
@@ -30,6 +30,13 @@ public class TaskGenerationService
 
         foreach (var interval in intervals)
         {
+            // Eingangskontrolle entsteht ausschließlich bei der Neuanlage eines Artikels. Bei einem
+            // Kategoriewechsel (includeEntryControl == false) würde sonst fälschlich eine neue, auf
+            // "heute" fällige Eingangskontrolle für ein längst in Betrieb befindliches Gerät erzeugt.
+            if (interval.IsEntryControl && !includeEntryControl)
+            {
+                continue;
+            }
             var message = interval.IsEntryControl
                 ? await AddEntryControlTaskAsync(db, article, interval)
                 : AddTask(db, article, interval);

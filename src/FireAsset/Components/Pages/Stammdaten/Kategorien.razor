@@ -150,12 +150,17 @@
     private async Task DeleteInterval(InspectionInterval iv)
     {
         var confirmed = await Dialogs.Confirm(
-            $"Intervall \"{iv.Name}\" wirklich löschen? Offene Aufgaben verlieren ihre Intervall-Zuordnung.",
+            $"Intervall \"{iv.Name}\" wirklich löschen?",
             "Löschen bestätigen",
             new ConfirmOptions { OkButtonText = "Löschen", CancelButtonText = "Abbrechen" });
         if (confirmed != true) return;
 
-        await CategoryService.DeleteIntervalAsync(iv.Id);
+        var error = await CategoryService.DeleteIntervalAsync(iv.Id);
+        if (error is not null)
+        {
+            Notify(error);
+            return;
+        }
         await ReloadIntervals();
         await ReloadCategories();
     }
