@@ -3,7 +3,7 @@
 @using FireAsset.Components.Pages.Aufgaben
 @inject ArticleService ArticleService
 @inject NotificationService Notifications
-@inject DialogService Dialogs
+@inject AdaptiveDialogService Dialogs
 
 <PageTitle>Artikelstamm · Asset Manager</PageTitle>
 
@@ -26,11 +26,20 @@
 </RadzenCard>
 
 <RadzenDataGrid Data="@_articles" TItem="Article" AllowSorting="true"
-                AllowFiltering="true" FilterMode="FilterMode.Advanced" GridLines="DataGridGridLines.Both" AllowColumnResize="true"
+                AllowFiltering="true" FilterMode="FilterMode.CheckBoxList" GridLines="DataGridGridLines.Both" AllowColumnResize="true"
                 AllowColumnPicking="true" AllowPaging="true" PageSize="20"
                 PageSizeOptions="@(new int[] { 10, 20, 50, 100 })" ShowPagingSummary="true"
                 RowDoubleClick="@(args => OpenEditor(args.Data!.Id))">
     <Columns>
+        <RadzenDataGridColumn TItem="Article" Context="a" Title="Foto" Width="70px" Sortable="false" Filterable="false" TextAlign="TextAlign.Center">
+            <Template Context="a">
+                @if (_photoIds.Contains(a.Id))
+                {
+                    <img src="@($"/artikel/{a.Id}/foto/thumb?v={_photoCacheKey}")" alt="Foto"
+                         style="width:40px; height:40px; object-fit:cover; border-radius:4px; border:1px solid #e5e7eb;" />
+                }
+            </Template>
+        </RadzenDataGridColumn>
         <RadzenDataGridColumn TItem="Article" Property="Identification" Title="Identifikation" Width="200px" />
         <RadzenDataGridColumn TItem="Article" Property="Barcode" Title="Barcode" Width="130px" />
         <RadzenDataGridColumn TItem="Article" Property="InventoryNumber" Title="Inv.-Nr." Width="120px" />
@@ -45,7 +54,8 @@
         <RadzenDataGridColumn TItem="Article" Title="Standort-Barcode" Property="Location.Barcode" Width="140px">
             <Template Context="a">@a.Location?.Barcode</Template>
         </RadzenDataGridColumn>
-        <RadzenDataGridColumn TItem="Article" Title="Prüfstatus" Width="130px" Sortable="false">
+        <RadzenDataGridColumn TItem="Article" Property="ContactName" Title="Ansprechpartner" Width="160px" />
+        <RadzenDataGridColumn TItem="Article" Title="Prüfstatus" Width="130px" Sortable="false" Filterable="false">
             <Template Context="a">
                 <RadzenBadge Text="@InspectionResultInfo.Label(a.CurrentInspectionStatus)"
                              BadgeStyle="@InspectionResultInfo.BadgeStyle(a.CurrentInspectionStatus)" />
@@ -73,6 +83,9 @@
     private Task<AuthenticationState>? AuthState { get; set; }
 
     private List<Article> _articles = new();
+    private HashSet<int> _photoIds = new();
+    // Cache-Buster: erzwingt nach jedem Reload frische Thumbnails (z. B. nach Foto-Wechsel).
+    private string _photoCacheKey = string.Empty;
     private string _searchBarcode = string.Empty;
     private RadzenTextBox? _searchBox;
     private int? _userId;
@@ -88,7 +101,12 @@
         await Reload();
     }
 
-    private async Task Reload() => _articles = await ArticleService.GetArticlesAsync();
+    private async Task Reload()
+    {
+        _articles = await ArticleService.GetArticlesAsync();
+        _photoIds = await ArticleService.GetPhotoArticleIdsAsync();
+        _photoCacheKey = Guid.NewGuid().ToString("N");
+    }
 
     private async Task OnSearchKeyDown(KeyboardEventArgs e)
     {

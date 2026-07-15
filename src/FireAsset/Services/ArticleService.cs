@@ -22,7 +22,7 @@ public class ArticleService
     {
         await using var db = await _factory.CreateDbContextAsync();
         return await db.Articles
-            .Include(a => a.Category)
+            .Include(a => a.Category).ThenInclude(c => c.ContactUser)
             .Include(a => a.Location)
             .OrderBy(a => a.Identification)
             .ToListAsync();
@@ -105,6 +105,7 @@ public class ArticleService
         existing.ManufacturerNumber = article.ManufacturerNumber;
         existing.InventoryNumber = article.InventoryNumber;
         existing.Barcode = article.Barcode;
+        existing.PurchasePrice = article.PurchasePrice;
         existing.AcquisitionDate = article.AcquisitionDate;
         existing.ProductionDate = article.ProductionDate;
         existing.DecommissionDate = article.DecommissionDate;
@@ -203,6 +204,53 @@ public class ArticleService
     {
         await using var db = await _factory.CreateDbContextAsync();
         return await db.Categories.Where(c => c.IsActive).OrderBy(c => c.Name).ToListAsync();
+    }
+
+    // --- Artikel-Foto ---------------------------------------------------------------------
+
+    /// <summary>Bilddaten eines Fotos (Detail- oder Thumbnail-Variante) für den Auslieferungs-Endpoint.</summary>
+    public record PhotoData(byte[] Data, string ContentType);
+
+    /// <summary>Legt das (bereits verkleinerte) Foto an bzw. ersetzt ein vorhandenes.</summary>
+    public async Task SavePhotoAsync(int articleId, ImageProcessing.ProcessedImage processed)
+    {
+        await using var db = await _factory.CreateDbContextAsync();
+        var photo = await db.ArticlePhotos.FirstOrDefaultAsync(p => p.ArticleId == articleId);
+        if (photo is null)
+        {
+            photo = new ArticlePhoto { ArticleId = articleId };
+            db.ArticlePhotos.Add(photo);
+        }
+        photo.ContentType = "image/jpeg";
+        photo.Data = processed.Detail;
+        photo.Thumbnail = processed.Thumbnail;
+        photo.SizeBytes = processed.Detail.LongLength;
+        photo.CreatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+    }
+
+    public async Task DeletePhotoAsync(int articleId)
+    {
+        await using var db = await _factory.CreateDbContextAsync();
+        await db.ArticlePhotos.Where(p => p.ArticleId == articleId).ExecuteDeleteAsync();
+    }
+
+    /// <summary>Liefert die gewünschte Foto-Variante oder null.</summary>
+    public async Task<PhotoData?> GetPhotoAsync(int articleId, bool thumbnail)
+    {
+        await using var db = await _factory.CreateDbContextAsync();
+        return await db.ArticlePhotos
+            .Where(p => p.ArticleId == articleId)
+            .Select(p => new PhotoData(thumbnail ? p.Thumbnail : p.Data, p.ContentType))
+            .FirstOrDefaultAsync();
+    }
+
+    /// <summary>Ids aller Artikel, die ein Foto besitzen (für die Grid-Anzeige, ohne Blobs zu laden).</summary>
+    public async Task<HashSet<int>> GetPhotoArticleIdsAsync()
+    {
+        await using var db = await _factory.CreateDbContextAsync();
+        var ids = await db.ArticlePhotos.Select(p => p.ArticleId).ToListAsync();
+        return ids.ToHashSet();
     }
 
     private static void Normalize(Article article)
