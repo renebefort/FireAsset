@@ -1,0 +1,8 @@
+{
+  "//": "Vorlage fuer die externe DB-Konfiguration. Diese Datei nach 'dbsettings.json' kopieren",
+  "//_1": "und den Connection-String anpassen. 'dbsettings.json' ist gitignored (enthaelt Zugangsdaten).",
+  "//_2": "TrustServerCertificate=True ist fuer einen lokalen SQL Server ohne gueltiges Zertifikat noetig.",
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=localhost;Database=FireAsset;User Id=<user>;Password=<password>;TrustServerCertificate=True"
+  }
+}

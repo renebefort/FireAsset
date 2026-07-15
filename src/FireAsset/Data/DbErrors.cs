@@ -1,10 +1,10 @@
-using Microsoft.Data.Sqlite;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace FireAsset.Data;
 
 /// <summary>
-/// Hilfsfunktionen zur Auswertung von Datenbankfehlern (SQLite), damit Constraint-Verletzungen
+/// Hilfsfunktionen zur Auswertung von Datenbankfehlern (SQL Server), damit Constraint-Verletzungen
 /// als verständliche Meldungen statt als unbehandelte Exceptions beim Benutzer ankommen.
 /// </summary>
 public static class DbErrors
@@ -16,14 +16,24 @@ public static class DbErrors
 
     /// <summary>
     /// True, wenn die Exception eine UNIQUE-Constraint-Verletzung ist – optional eingeschränkt
-    /// auf eine bestimmte Spalte (Angabe als "Tabelle.Spalte", z. B. "Users.Email").
+    /// auf eine Spalte in "Tabelle.Spalte"-Schreibweise (z. B. "Users.Email").
+    /// SQL Server meldet 2627 (Unique-Constraint) bzw. 2601 (Unique-Index) und nennt in der
+    /// Meldung Objekt ('dbo.Users') und Index ('IX_Users_Email') getrennt – deshalb wird jeder
+    /// per '.' getrennte Bestandteil einzeln im Meldungstext gesucht.
     /// </summary>
     public static bool IsUniqueViolation(DbUpdateException ex, string? column = null)
     {
-        if (ex.InnerException is not SqliteException sqlite || sqlite.SqliteErrorCode != 19)
+        if (ex.InnerException is not SqlException sql ||
+            (sql.Number != 2627 && sql.Number != 2601))
         {
             return false;
         }
-        return column is null || sqlite.Message.Contains(column, StringComparison.OrdinalIgnoreCase);
+        if (column is null)
+        {
+            return true;
+        }
+        return column
+            .Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .All(part => sql.Message.Contains(part, StringComparison.OrdinalIgnoreCase));
     }
 }

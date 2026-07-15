@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace FireAsset.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class DataModel : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -15,11 +15,12 @@ namespace FireAsset.Data.Migrations
                 name: "Categories",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    Name = table.Column<string>(type: "TEXT", maxLength: 200, nullable: false),
-                    Description = table.Column<string>(type: "TEXT", maxLength: 1000, nullable: true),
-                    IsActive = table.Column<bool>(type: "INTEGER", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false),
+                    Version = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -30,13 +31,14 @@ namespace FireAsset.Data.Migrations
                 name: "Locations",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    Name = table.Column<string>(type: "TEXT", maxLength: 200, nullable: false),
-                    Description = table.Column<string>(type: "TEXT", maxLength: 1000, nullable: true),
-                    Barcode = table.Column<string>(type: "TEXT", maxLength: 100, nullable: true),
-                    Icon = table.Column<string>(type: "TEXT", maxLength: 50, nullable: true),
-                    ParentLocationId = table.Column<int>(type: "INTEGER", nullable: true)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
+                    Barcode = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    Icon = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
+                    Version = table.Column<int>(type: "int", nullable: false),
+                    ParentLocationId = table.Column<int>(type: "int", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -50,32 +52,53 @@ namespace FireAsset.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Users",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    FirstName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    LastName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Email = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
+                    PasswordHash = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Version = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Users", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Articles",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    Identification = table.Column<string>(type: "TEXT", maxLength: 300, nullable: false),
-                    Manufacturer = table.Column<string>(type: "TEXT", maxLength: 200, nullable: true),
-                    Type = table.Column<string>(type: "TEXT", maxLength: 200, nullable: true),
-                    SerialNumber = table.Column<string>(type: "TEXT", maxLength: 100, nullable: true),
-                    ManufacturerNumber = table.Column<string>(type: "TEXT", maxLength: 100, nullable: true),
-                    InventoryNumber = table.Column<string>(type: "TEXT", maxLength: 100, nullable: true),
-                    Barcode = table.Column<string>(type: "TEXT", maxLength: 100, nullable: true),
-                    AcquisitionDate = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    ProductionDate = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    DecommissionDate = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    LegalBasis = table.Column<string>(type: "TEXT", maxLength: 300, nullable: true),
-                    EndDate = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    Description = table.Column<string>(type: "TEXT", maxLength: 2000, nullable: true),
-                    CategoryId = table.Column<int>(type: "INTEGER", nullable: false),
-                    LocationId = table.Column<int>(type: "INTEGER", nullable: true),
-                    IsActive = table.Column<bool>(type: "INTEGER", nullable: false),
-                    CurrentInspectionStatus = table.Column<int>(type: "INTEGER", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    CreatedByUserId = table.Column<int>(type: "INTEGER", nullable: true),
-                    ModifiedByUserId = table.Column<int>(type: "INTEGER", nullable: true)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Identification = table.Column<string>(type: "nvarchar(300)", maxLength: 300, nullable: false),
+                    Manufacturer = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
+                    Type = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
+                    SerialNumber = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    ManufacturerNumber = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    InventoryNumber = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    Barcode = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    AcquisitionDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ProductionDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    DecommissionDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    LegalBasis = table.Column<string>(type: "nvarchar(300)", maxLength: 300, nullable: true),
+                    EndDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    Description = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
+                    CategoryId = table.Column<int>(type: "int", nullable: false),
+                    LocationId = table.Column<int>(type: "int", nullable: true),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false),
+                    IsPoolDevice = table.Column<bool>(type: "bit", nullable: false),
+                    CurrentInspectionStatus = table.Column<int>(type: "int", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Version = table.Column<int>(type: "int", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    CreatedByUserId = table.Column<int>(type: "int", nullable: true),
+                    ModifiedByUserId = table.Column<int>(type: "int", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -96,29 +119,27 @@ namespace FireAsset.Data.Migrations
                         name: "FK_Articles_Users_CreatedByUserId",
                         column: x => x.CreatedByUserId,
                         principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
+                        principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_Articles_Users_ModifiedByUserId",
                         column: x => x.ModifiedByUserId,
                         principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
                 name: "FormFields",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    FormVersionId = table.Column<int>(type: "INTEGER", nullable: false),
-                    Label = table.Column<string>(type: "TEXT", maxLength: 200, nullable: false),
-                    FieldType = table.Column<int>(type: "INTEGER", nullable: false),
-                    SortOrder = table.Column<int>(type: "INTEGER", nullable: false),
-                    ReferenceValue = table.Column<string>(type: "TEXT", maxLength: 100, nullable: true),
-                    Unit = table.Column<string>(type: "TEXT", maxLength: 50, nullable: true),
-                    ShowLastValue = table.Column<bool>(type: "INTEGER", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    FormVersionId = table.Column<int>(type: "int", nullable: false),
+                    Label = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    FieldType = table.Column<int>(type: "int", nullable: false),
+                    SortOrder = table.Column<int>(type: "int", nullable: false),
+                    ReferenceValue = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    Unit = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
+                    ShowLastValue = table.Column<bool>(type: "bit", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -129,13 +150,14 @@ namespace FireAsset.Data.Migrations
                 name: "Forms",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    Name = table.Column<string>(type: "TEXT", maxLength: 200, nullable: false),
-                    Description = table.Column<string>(type: "TEXT", maxLength: 1000, nullable: true),
-                    IsActive = table.Column<bool>(type: "INTEGER", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    CurrentVersionId = table.Column<int>(type: "INTEGER", nullable: true)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false),
+                    Version = table.Column<int>(type: "int", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CurrentVersionId = table.Column<int>(type: "int", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -146,12 +168,12 @@ namespace FireAsset.Data.Migrations
                 name: "FormVersions",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    FormId = table.Column<int>(type: "INTEGER", nullable: false),
-                    VersionNumber = table.Column<int>(type: "INTEGER", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    EditedByUserId = table.Column<int>(type: "INTEGER", nullable: true)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    FormId = table.Column<int>(type: "int", nullable: false),
+                    VersionNumber = table.Column<int>(type: "int", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    EditedByUserId = table.Column<int>(type: "int", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -174,13 +196,14 @@ namespace FireAsset.Data.Migrations
                 name: "InspectionIntervals",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    CategoryId = table.Column<int>(type: "INTEGER", nullable: false),
-                    Name = table.Column<string>(type: "TEXT", maxLength: 200, nullable: false),
-                    IntervalMonths = table.Column<int>(type: "INTEGER", nullable: false),
-                    FormId = table.Column<int>(type: "INTEGER", nullable: false),
-                    IsActive = table.Column<bool>(type: "INTEGER", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    CategoryId = table.Column<int>(type: "int", nullable: false),
+                    Name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    IntervalMonths = table.Column<int>(type: "int", nullable: false),
+                    FormId = table.Column<int>(type: "int", nullable: true),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false),
+                    Version = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -196,22 +219,22 @@ namespace FireAsset.Data.Migrations
                         column: x => x.FormId,
                         principalTable: "Forms",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.SetNull);
                 });
 
             migrationBuilder.CreateTable(
                 name: "InspectionTasks",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    ArticleId = table.Column<int>(type: "INTEGER", nullable: false),
-                    IntervalId = table.Column<int>(type: "INTEGER", nullable: true),
-                    FormId = table.Column<int>(type: "INTEGER", nullable: false),
-                    DueDate = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    Status = table.Column<int>(type: "INTEGER", nullable: false),
-                    IsManual = table.Column<bool>(type: "INTEGER", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    ArticleId = table.Column<int>(type: "int", nullable: false),
+                    IntervalId = table.Column<int>(type: "int", nullable: true),
+                    FormId = table.Column<int>(type: "int", nullable: false),
+                    DueDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    IsManual = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -240,16 +263,18 @@ namespace FireAsset.Data.Migrations
                 name: "InspectionProtocols",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    ArticleId = table.Column<int>(type: "INTEGER", nullable: false),
-                    TaskId = table.Column<int>(type: "INTEGER", nullable: true),
-                    FormVersionId = table.Column<int>(type: "INTEGER", nullable: false),
-                    Result = table.Column<int>(type: "INTEGER", nullable: false),
-                    Notes = table.Column<string>(type: "TEXT", maxLength: 4000, nullable: true),
-                    IsUnplanned = table.Column<bool>(type: "INTEGER", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    CreatedByUserId = table.Column<int>(type: "INTEGER", nullable: true)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    ArticleId = table.Column<int>(type: "int", nullable: false),
+                    TaskId = table.Column<int>(type: "int", nullable: true),
+                    FormVersionId = table.Column<int>(type: "int", nullable: false),
+                    Result = table.Column<int>(type: "int", nullable: false),
+                    Notes = table.Column<string>(type: "nvarchar(4000)", maxLength: 4000, nullable: true),
+                    IsUnplanned = table.Column<bool>(type: "bit", nullable: false),
+                    CompletedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedByUserId = table.Column<int>(type: "int", nullable: true),
+                    CreatedByUserName = table.Column<string>(type: "nvarchar(201)", maxLength: 201, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -259,7 +284,7 @@ namespace FireAsset.Data.Migrations
                         column: x => x.ArticleId,
                         principalTable: "Articles",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_InspectionProtocols_FormVersions_FormVersionId",
                         column: x => x.FormVersionId,
@@ -284,11 +309,11 @@ namespace FireAsset.Data.Migrations
                 name: "ProtocolFieldValues",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    ProtocolId = table.Column<int>(type: "INTEGER", nullable: false),
-                    FormFieldId = table.Column<int>(type: "INTEGER", nullable: false),
-                    Value = table.Column<string>(type: "TEXT", maxLength: 4000, nullable: true)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    ProtocolId = table.Column<int>(type: "int", nullable: false),
+                    FormFieldId = table.Column<int>(type: "int", nullable: false),
+                    Value = table.Column<string>(type: "nvarchar(4000)", maxLength: 4000, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -342,7 +367,8 @@ namespace FireAsset.Data.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_Categories_Name",
                 table: "Categories",
-                column: "Name");
+                column: "Name",
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_FormFields_FormVersionId",
@@ -433,9 +459,16 @@ namespace FireAsset.Data.Migrations
                 column: "FormFieldId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_ProtocolFieldValues_ProtocolId",
+                name: "IX_ProtocolFieldValues_ProtocolId_FormFieldId",
                 table: "ProtocolFieldValues",
-                column: "ProtocolId");
+                columns: new[] { "ProtocolId", "FormFieldId" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Users_Email",
+                table: "Users",
+                column: "Email",
+                unique: true);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_FormFields_FormVersions_FormVersionId",
@@ -457,6 +490,10 @@ namespace FireAsset.Data.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropForeignKey(
+                name: "FK_FormVersions_Users_EditedByUserId",
+                table: "FormVersions");
+
             migrationBuilder.DropForeignKey(
                 name: "FK_Forms_FormVersions_CurrentVersionId",
                 table: "Forms");
@@ -484,6 +521,9 @@ namespace FireAsset.Data.Migrations
 
             migrationBuilder.DropTable(
                 name: "Categories");
+
+            migrationBuilder.DropTable(
+                name: "Users");
 
             migrationBuilder.DropTable(
                 name: "FormVersions");

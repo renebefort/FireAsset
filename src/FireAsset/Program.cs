@@ -10,6 +10,12 @@ using Radzen;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Externe, im Betrieb editierbare DB-Konfiguration. Wird nach appsettings.json geladen und
+// überschreibt daher den dortigen ConnectionStrings-Abschnitt. Optional, damit Build/Tooling
+// (z. B. dotnet ef) auch ohne die Datei laufen; zur Laufzeit wird ein fehlender String unten
+// mit einer klaren Meldung abgefangen.
+builder.Configuration.AddJsonFile("dbsettings.json", optional: true, reloadOnChange: true);
+
 // Blazor (Interactive Server).
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
@@ -17,11 +23,16 @@ builder.Services.AddRazorComponents()
 // Radzen UI-Komponenten und Dienste (Dialog, Notification, Tooltip, ContextMenu).
 builder.Services.AddRadzenComponents();
 
-// Datenbank (SQLite).
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? "Data Source=fireasset.db";
+// Datenbank (MS SQL Server). Connection-String kommt aus dbsettings.json (extern, gitignored).
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new InvalidOperationException(
+        "Kein Connection-String konfiguriert. Bitte 'dbsettings.json' anlegen und unter " +
+        "ConnectionStrings:DefaultConnection den SQL-Server-String eintragen (Vorlage: dbsettings.example.json).");
+}
 // DbContextFactory: kurzlebige Kontexte je Operation (empfohlen für Blazor Server).
-builder.Services.AddDbContextFactory<AppDbContext>(options => options.UseSqlite(connectionString));
+builder.Services.AddDbContextFactory<AppDbContext>(options => options.UseSqlServer(connectionString));
 
 // Anwendungsdienste.
 builder.Services.AddScoped<UserService>();
