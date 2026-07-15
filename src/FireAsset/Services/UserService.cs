@@ -142,6 +142,7 @@ public class UserService
         existing.LastName = user.LastName;
         existing.Email = user.Email.Trim();
         existing.IsActive = user.IsActive;
+        existing.IsAdmin = user.IsAdmin;
 
         if (!string.IsNullOrWhiteSpace(newPassword))
         {
