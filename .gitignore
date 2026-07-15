@@ -9,6 +9,9 @@ obj/
 *.db-shm
 *.db-wal
 
+## Externe DB-Konfiguration mit Zugangsdaten – nicht einchecken (Template: dbsettings.example.json)
+dbsettings.json
+
 ## Rider / VS Code
 .idea/
 .vscode/

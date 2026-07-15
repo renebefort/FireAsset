@@ -12,8 +12,17 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.9" />
     <PackageReference Include="Radzen.Blazor" Version="11.1.2" />
+  </ItemGroup>
+
+  <!-- Externe, im Betrieb editierbare DB-Konfiguration. dbsettings.json enthält den
+       Connection-String (inkl. Zugangsdaten) und ist NICHT im Git; das Template wird
+       mitgeliefert. Beide werden in den Ausgabeordner kopiert (PreserveNewest überschreibt
+       eine vor Ort angepasste Datei nicht). -->
+  <ItemGroup>
+    <None Update="dbsettings.json" CopyToOutputDirectory="PreserveNewest" Condition="Exists('dbsettings.json')" />
+    <None Update="dbsettings.example.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

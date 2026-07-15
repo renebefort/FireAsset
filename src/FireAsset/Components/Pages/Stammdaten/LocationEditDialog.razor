@@ -10,13 +10,12 @@
 
     <div>
         <label class="fa-label">Übergeordneter Standort</label>
-        <select class="fa-input" @bind="_location.ParentLocationId">
-            <option value="">(kein übergeordneter Standort)</option>
-            @foreach (var o in _parentOptions)
-            {
-                <option value="@o.Id">@o.Path</option>
-            }
-        </select>
+        <RadzenDropDown @bind-Value="_location.ParentLocationId"
+                        Data="@_parentOptions" TextProperty="Path" ValueProperty="Id"
+                        AllowFiltering="true" FilterAsYouType="true" AllowClear="true"
+                        FilterOperator="StringFilterOperator.Contains"
+                        FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                        Placeholder="(kein übergeordneter Standort)" Style="width: 100%" />
     </div>
 
     <RadzenRow Gap="0.75rem">

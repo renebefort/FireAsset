@@ -18,10 +18,6 @@ public static class DbInitializer
 
         await db.Database.MigrateAsync();
 
-        // WAL-Modus (persistiert in der DB-Datei): parallele Lesezugriffe blockieren
-        // Schreibzugriffe nicht mehr – vermeidet "database is locked" unter Blazor-Server-Last.
-        await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;");
-
         if (await db.Users.AnyAsync())
         {
             return;

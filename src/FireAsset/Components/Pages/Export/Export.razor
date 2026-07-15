@@ -17,23 +17,21 @@
     <RadzenStack Gap="0.75rem">
         <div>
             <label class="fa-label">Kategorie</label>
-            <select class="fa-input" @bind="_categoryId">
-                <option value="">(alle Kategorien)</option>
-                @foreach (var c in _categories)
-                {
-                    <option value="@c.Id">@c.Name</option>
-                }
-            </select>
+            <RadzenDropDown @bind-Value="_categoryId"
+                            Data="@_categories" TextProperty="Name" ValueProperty="Id"
+                            AllowFiltering="true" FilterAsYouType="true" AllowClear="true"
+                            FilterOperator="StringFilterOperator.Contains"
+                            FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                            Placeholder="(alle Kategorien)" Style="width: 100%" />
         </div>
         <div>
             <label class="fa-label">Standort</label>
-            <select class="fa-input" @bind="_locationId">
-                <option value="">(alle Standorte)</option>
-                @foreach (var o in _locationOptions)
-                {
-                    <option value="@o.Id">@o.Path</option>
-                }
-            </select>
+            <RadzenDropDown @bind-Value="_locationId"
+                            Data="@_locationOptions" TextProperty="Path" ValueProperty="Id"
+                            AllowFiltering="true" FilterAsYouType="true" AllowClear="true"
+                            FilterOperator="StringFilterOperator.Contains"
+                            FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                            Placeholder="(alle Standorte)" Style="width: 100%" />
         </div>
         <div style="max-width: 260px">
             <label class="fa-label">Status</label>

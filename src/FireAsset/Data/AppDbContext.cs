@@ -32,8 +32,9 @@ public class AppDbContext : DbContext
         {
             e.Property(u => u.FirstName).HasMaxLength(100).IsRequired();
             e.Property(u => u.LastName).HasMaxLength(100).IsRequired();
-            // NOCASE: E-Mail-Vergleiche und der Unique-Index arbeiten case-insensitiv.
-            e.Property(u => u.Email).HasMaxLength(256).IsRequired().UseCollation("NOCASE");
+            // E-Mail-Vergleiche und der Unique-Index arbeiten case-insensitiv – unter SQL Server
+            // deckt das die Standard-Collation (…_CI_AS) bereits ab, daher keine explizite Angabe.
+            e.Property(u => u.Email).HasMaxLength(256).IsRequired();
             e.Property(u => u.PasswordHash).IsRequired();
             e.Property(u => u.Version).IsConcurrencyToken();
             e.HasIndex(u => u.Email).IsUnique();
@@ -47,7 +48,7 @@ public class AppDbContext : DbContext
             e.Property(l => l.Barcode).HasMaxLength(100);
             e.Property(l => l.Icon).HasMaxLength(50);
             e.Property(l => l.Version).IsConcurrencyToken();
-            e.HasIndex(l => l.Barcode).IsUnique().HasFilter("\"Barcode\" IS NOT NULL");
+            e.HasIndex(l => l.Barcode).IsUnique().HasFilter("[Barcode] IS NOT NULL");
             e.HasOne(l => l.ParentLocation)
                 .WithMany(l => l.Children)
                 .HasForeignKey(l => l.ParentLocationId)
@@ -126,7 +127,7 @@ public class AppDbContext : DbContext
             e.Property(a => a.Description).HasMaxLength(2000);
             e.Property(a => a.CurrentInspectionStatus).HasConversion<int>();
             e.Property(a => a.Version).IsConcurrencyToken();
-            e.HasIndex(a => a.Barcode).IsUnique().HasFilter("\"Barcode\" IS NOT NULL");
+            e.HasIndex(a => a.Barcode).IsUnique().HasFilter("[Barcode] IS NOT NULL");
             e.HasIndex(a => a.InventoryNumber);
             e.HasOne(a => a.Category)
                 .WithMany(c => c.Articles)
@@ -136,14 +137,18 @@ public class AppDbContext : DbContext
                 .WithMany(l => l.Articles)
                 .HasForeignKey(a => a.LocationId)
                 .OnDelete(DeleteBehavior.SetNull);
+            // ClientSetNull statt SetNull: Article hat zwei FKs auf Users (Created/Modified);
+            // zwei DB-seitige ON DELETE SET NULL-Pfade zur selben Tabelle lehnt SQL Server ab
+            // ("multiple cascade paths"). Benutzer werden ohnehin nur soft-deleted (IsActive),
+            // daher ist das Nullen dieser Audit-Referenzen auf Client-Ebene ausreichend.
             e.HasOne(a => a.CreatedByUser)
                 .WithMany()
                 .HasForeignKey(a => a.CreatedByUserId)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.ClientSetNull);
             e.HasOne(a => a.ModifiedByUser)
                 .WithMany()
                 .HasForeignKey(a => a.ModifiedByUserId)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.ClientSetNull);
         });
 
         modelBuilder.Entity<InspectionTask>(e =>

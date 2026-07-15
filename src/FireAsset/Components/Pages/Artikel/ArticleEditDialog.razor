@@ -22,23 +22,26 @@
     <RadzenRow Gap="0.75rem">
         <RadzenColumn Size="12" SizeMd="6">
             <label class="fa-label">Kategorie</label>
-            <select class="fa-input" @bind="_article.CategoryId">
-                <option value="0">Kategorie wählen</option>
-                @foreach (var c in _categories)
-                {
-                    <option value="@c.Id">@c.Name</option>
-                }
-            </select>
+            <RadzenDropDown @bind-Value="_article.CategoryId"
+                            Data="@_categories" TextProperty="Name" ValueProperty="Id"
+                            AllowFiltering="true"
+                            FilterAsYouType="true"
+                            FilterOperator="StringFilterOperator.Contains"
+                            FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                            Placeholder="Tippen zum Filtern…"
+                            Style="width: 100%" />
         </RadzenColumn>
         <RadzenColumn Size="12" SizeMd="6">
             <label class="fa-label">Standort</label>
-            <select class="fa-input" @bind="_article.LocationId">
-                <option value="">(kein Standort)</option>
-                @foreach (var o in _locationOptions)
-                {
-                    <option value="@o.Id">@o.Path</option>
-                }
-            </select>
+            <RadzenDropDown @bind-Value="_article.LocationId"
+                            Data="@_locationOptions" TextProperty="Path" ValueProperty="Id"
+                            AllowFiltering="true"
+                            FilterAsYouType="true"
+                            AllowClear="true"
+                            FilterOperator="StringFilterOperator.Contains"
+                            FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                            Placeholder="(kein Standort)"
+                            Style="width: 100%" />
         </RadzenColumn>
     </RadzenRow>
 
