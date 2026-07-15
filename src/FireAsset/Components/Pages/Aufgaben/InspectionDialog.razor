@@ -34,7 +34,14 @@ else
 {
     <RadzenStack Gap="1rem">
         <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
-            <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-my-0">@ArticleName · @_model.FormName</RadzenText>
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.75rem">
+                @if (_articlePhotoDataUrl is not null)
+                {
+                    <img src="@_articlePhotoDataUrl" alt="Artikel-Foto"
+                         style="width:56px; height:56px; object-fit:cover; border:1px solid #e5e7eb; border-radius:6px; flex:0 0 auto;" />
+                }
+                <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-my-0">@ArticleName · @_model.FormName</RadzenText>
+            </RadzenStack>
             <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
                 <RadzenLabel Text="Letzte Werte anzeigen" Component="slv" />
                 <RadzenSwitch @bind-Value="_showLast" Name="slv" />
@@ -55,6 +62,94 @@ else
             </div>
         }
 
+        @foreach (var entry in _entries)
+        {
+            @if (entry.Field.FieldType == FieldType.Ueberschrift)
+            {
+                @* Gliederungs-Überschrift: nur Anzeige, keine Eingabe. *@
+                <RadzenText TextStyle="TextStyle.H6" class="rz-mt-2 rz-mb-0"
+                            Style="border-bottom:1px solid #e5e7eb; padding-bottom:0.25rem;">@entry.Field.Label</RadzenText>
+            }
+            else if (entry.Field.FieldType == FieldType.Hinweistext)
+            {
+                @* Hinweistext: nur Anzeige, keine Eingabe. *@
+                <RadzenText TextStyle="TextStyle.Body2" class="rz-my-0" Style="color:#4b5563;">@entry.Field.Label</RadzenText>
+            }
+            else
+            {
+                <div>
+                    @if (entry.Field.FieldType == FieldType.YesNo)
+                    {
+                        <div style="display:flex; align-items:center; gap:0.75rem;">
+                            <span style="font-weight:600; margin-right:auto">
+                                @entry.Field.Label
+                                @if (!string.IsNullOrEmpty(entry.Field.Unit)) { <span style="font-weight:400"> (@entry.Field.Unit)</span> }
+                                @if (!string.IsNullOrEmpty(entry.Field.ReferenceValue)) { <span style="font-weight:400"> · Referenz: @entry.Field.ReferenceValue</span> }
+                            </span>
+                            <RadzenSwitch @bind-Value="entry.Bool" />
+                            <span style="color:#6b7280; font-size:0.85rem; min-width:2.4rem;">@(entry.Bool ? "Ja" : "Nein")</span>
+                        </div>
+                    }
+                    else
+                    {
+                        <label class="fa-label" style="font-weight:600; color:inherit; font-size:0.9rem;">
+                            @entry.Field.Label
+                            @if (!string.IsNullOrEmpty(entry.Field.Unit)) { <span style="font-weight:400">(@entry.Field.Unit)</span> }
+                            @if (!string.IsNullOrEmpty(entry.Field.ReferenceValue)) { <span style="font-weight:400"> · Referenz: @entry.Field.ReferenceValue</span> }
+                        </label>
+
+                        @switch (entry.Field.FieldType)
+                        {
+                            case FieldType.SingleLineText:
+                                <input class="fa-input" @bind="entry.Text" />
+                                break;
+                            case FieldType.Integer:
+                                <input type="number" step="1" class="fa-input" @bind="entry.Int" />
+                                break;
+                            case FieldType.Decimal:
+                                <input type="number" step="0.01" class="fa-input" @bind="entry.Dec" />
+                                break;
+                            case FieldType.MultilineText:
+                                <textarea class="fa-input fa-textarea" rows="2" @bind="entry.Text"></textarea>
+                                break;
+                            case FieldType.Date:
+                                <input type="date" class="fa-input" @bind="entry.Date" style="max-width: 220px" />
+                                break;
+                            case FieldType.Url:
+                                <input type="url" class="fa-input" @bind="entry.Text" placeholder="https://..." />
+                                break;
+                            case FieldType.Attachment:
+                                <div>
+                                    <InputFile OnChange="@(e => OnFileSelected(entry, e))" accept=".pdf,image/*" />
+                                    @if (entry.FileBytes is not null)
+                                    {
+                                        <div style="display:flex; align-items:center; gap:0.5rem; margin-top:4px; color:#374151; font-size:0.85rem;">
+                                            <RadzenIcon Icon="attach_file" Style="font-size:1rem;" />
+                                            <span>@entry.FileName (@FormatSize(entry.FileBytes.Length))</span>
+                                            <RadzenButton Icon="close" Size="ButtonSize.ExtraSmall" ButtonStyle="ButtonStyle.Light"
+                                                          Click="() => ClearFile(entry)" title="Datei entfernen" />
+                                        </div>
+                                    }
+                                    @if (!string.IsNullOrEmpty(entry.FileError))
+                                    {
+                                        <div style="color:#dc2626; font-size:0.85rem; margin-top:2px;">@entry.FileError</div>
+                                    }
+                                </div>
+                                break;
+                        }
+                    }
+
+                    @if (_showLast && FieldTypeInfo.IsTextValue(entry.Field.FieldType)
+                         && _model.LastValues.TryGetValue(entry.Field.Label, out var last) && !string.IsNullOrEmpty(last))
+                    {
+                        <div style="font-style:italic; color:#888; font-size:0.85rem; margin-top:2px;">
+                            letzte Prüfung: @FormatLast(entry.Field.FieldType, last)
+                        </div>
+                    }
+                </div>
+            }
+        }
+
         @if (_yesNoCount > 1)
         {
             @* Sammelaktion: alle Ja/Nein-Fragen auf einmal umstellen (Default ist "Nein"). *@
@@ -70,68 +165,24 @@ else
             </RadzenStack>
         }
 
-        @foreach (var entry in _entries)
-        {
-            <div>
-                @if (entry.Field.FieldType == FieldType.YesNo)
-                {
-                    <div style="display:flex; align-items:center; gap:0.75rem;">
-                        <span style="font-weight:600; margin-right:auto">
-                            @entry.Field.Label
-                            @if (!string.IsNullOrEmpty(entry.Field.Unit)) { <span style="font-weight:400"> (@entry.Field.Unit)</span> }
-                            @if (!string.IsNullOrEmpty(entry.Field.ReferenceValue)) { <span style="font-weight:400"> · Referenz: @entry.Field.ReferenceValue</span> }
-                        </span>
-                        <RadzenSwitch @bind-Value="entry.Bool" />
-                        <span style="color:#6b7280; font-size:0.85rem; min-width:2.4rem;">@(entry.Bool ? "Ja" : "Nein")</span>
-                    </div>
-                }
-                else
-                {
-                    <label class="fa-label" style="font-weight:600; color:inherit; font-size:0.9rem;">
-                        @entry.Field.Label
-                        @if (!string.IsNullOrEmpty(entry.Field.Unit)) { <span style="font-weight:400">(@entry.Field.Unit)</span> }
-                        @if (!string.IsNullOrEmpty(entry.Field.ReferenceValue)) { <span style="font-weight:400"> · Referenz: @entry.Field.ReferenceValue</span> }
-                    </label>
-
-                    @switch (entry.Field.FieldType)
-                    {
-                        case FieldType.SingleLineText:
-                            <input class="fa-input" @bind="entry.Text" />
-                            break;
-                        case FieldType.Integer:
-                            <input type="number" step="1" class="fa-input" @bind="entry.Int" />
-                            break;
-                        case FieldType.Decimal:
-                            <input type="number" step="0.01" class="fa-input" @bind="entry.Dec" />
-                            break;
-                        case FieldType.MultilineText:
-                            <textarea class="fa-input fa-textarea" rows="2" @bind="entry.Text"></textarea>
-                            break;
-                        case FieldType.Date:
-                            <input type="date" class="fa-input" @bind="entry.Date" style="max-width: 220px" />
-                            break;
-                    }
-                }
-
-                @if (_showLast && _model.LastValues.TryGetValue(entry.Field.Label, out var last) && !string.IsNullOrEmpty(last))
-                {
-                    <div style="font-style:italic; color:#888; font-size:0.85rem; margin-top:2px;">
-                        letzte Prüfung: @FormatLast(entry.Field.FieldType, last)
-                    </div>
-                }
-            </div>
-        }
-
         <div>
             <RadzenText TextStyle="TextStyle.Body2" class="rz-mb-1" Style="font-weight:600">Prüfergebnis</RadzenText>
             <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
-                <RadzenButton Text="Bestanden" Icon="check_circle" Click="() => _result = InspectionResult.Bestanden"
+                <RadzenButton Text="Bestanden" Icon="check_circle" Click="() => SetResult(InspectionResult.Bestanden)"
                               ButtonStyle="@(_result == InspectionResult.Bestanden ? ButtonStyle.Success : ButtonStyle.Light)" />
-                <RadzenButton Text="Mangelhaft" Icon="warning" Click="() => _result = InspectionResult.Mangelhaft"
+                <RadzenButton Text="Mangelhaft" Icon="warning" Click="() => SetResult(InspectionResult.Mangelhaft)"
                               ButtonStyle="@(_result == InspectionResult.Mangelhaft ? ButtonStyle.Warning : ButtonStyle.Light)" />
-                <RadzenButton Text="Nicht bestanden" Icon="cancel" Click="() => _result = InspectionResult.NichtBestanden"
+                <RadzenButton Text="Nicht bestanden" Icon="cancel" Click="() => SetResult(InspectionResult.NichtBestanden)"
                               ButtonStyle="@(_result == InspectionResult.NichtBestanden ? ButtonStyle.Danger : ButtonStyle.Light)" />
             </RadzenStack>
+            @if (_showYesNoHint)
+            {
+                <RadzenAlert AlertStyle="AlertStyle.Warning" Variant="Variant.Flat" ShowIcon="true" AllowClose="true"
+                             Close="() => _showYesNoHint = false" class="rz-mt-2 rz-mb-0">
+                    Es sind nicht alle Ja/Nein-Fragen mit „Ja“ beantwortet. Dies ist nur ein Hinweis – Sie können den
+                    Hinweis schließen und trotzdem fortfahren.
+                </RadzenAlert>
+            }
         </div>
 
         <div>
@@ -167,11 +218,14 @@ else
     private List<Form> _forms = new();
     private string? _locationPath;
     private int _yesNoCount;
+    private string? _articlePhotoDataUrl;
+    private bool _showYesNoHint;
 
     protected override async Task OnInitializedAsync()
     {
         _dueDate = DueDateParam;
         await LoadLocationPathAsync();
+        await LoadArticlePhotoAsync();
 
         // Ungeplante Prüfung ohne vorgegebenes Formular: zuerst Formular wählen.
         if (Unplanned && FormId == 0)
@@ -215,6 +269,26 @@ else
         }
     }
 
+    /// <summary>
+    /// Setzt das Prüfergebnis. Bei "Bestanden" wird ein (nicht blockierender) Hinweis eingeblendet,
+    /// falls nicht alle Ja/Nein-Fragen mit "Ja" beantwortet sind.
+    /// </summary>
+    private void SetResult(InspectionResult result)
+    {
+        _result = result;
+        _showYesNoHint = result == InspectionResult.Bestanden
+            && _entries.Any(e => e.Field.FieldType == FieldType.YesNo && !e.Bool);
+    }
+
+    private async Task LoadArticlePhotoAsync()
+    {
+        var thumb = await ArticleService.GetPhotoAsync(ArticleId, thumbnail: true);
+        if (thumb is not null)
+        {
+            _articlePhotoDataUrl = $"data:{thumb.ContentType};base64,{Convert.ToBase64String(thumb.Data)}";
+        }
+    }
+
     private async Task LoadLocationPathAsync()
     {
         var article = await ArticleService.GetByIdAsync(ArticleId);
@@ -237,7 +311,16 @@ else
             return;
         }
 
-        var values = _entries.ToDictionary(e => e.Field.Id, e => e.ToStringValue());
+        // Nur echte Eingabe-Felder erhalten einen Textwert; Anzeige-Typen (Hinweis/Überschrift) und
+        // Anhänge werden getrennt behandelt.
+        var values = _entries
+            .Where(e => FieldTypeInfo.IsTextValue(e.Field.FieldType))
+            .ToDictionary(e => e.Field.Id, e => e.ToStringValue());
+
+        var attachments = _entries
+            .Where(e => FieldTypeInfo.IsAttachment(e.Field.FieldType) && e.FileBytes is not null)
+            .Select(e => new InspectionService.AttachmentInput(e.Field.Id, e.FileName!, e.ContentType!, e.FileBytes!))
+            .ToList();
 
         _saving = true;
         try
@@ -245,14 +328,14 @@ else
             InspectionService.ExecuteResult result;
             if (Unplanned)
             {
-                result = await InspectionService.ExecuteUnplannedAsync(ArticleId, _model.FormVersionId, values, _result.Value, _notes, UserId);
+                result = await InspectionService.ExecuteUnplannedAsync(ArticleId, _model.FormVersionId, values, _result.Value, _notes, UserId, attachments);
             }
             else
             {
                 // Geändertes Fälligkeitsdatum wird zusammen mit dem Abschluss atomar gespeichert.
                 var newDueDate = _dueDate is DateTime d && d != DueDateParam ? d : (DateTime?)null;
                 result = await InspectionService.ExecuteTaskAsync(TaskId!.Value, _model.FormVersionId, values,
-                    _result.Value, _notes, DateTime.Now, newDueDate, UserId);
+                    _result.Value, _notes, DateTime.Now, newDueDate, UserId, attachments);
             }
 
             if (!result.Ok)
@@ -277,6 +360,75 @@ else
         }
     }
 
+    /// <summary>Maximale Upload-Größe pro Datei (10 MB) – deckt sich mit OpenReadStream-Limit.</summary>
+    private const long MaxUploadBytes = 10L * 1024 * 1024;
+
+    private async Task OnFileSelected(FieldEntry entry, InputFileChangeEventArgs e)
+    {
+        entry.FileError = null;
+        var file = e.File;
+
+        if (file.Size > MaxUploadBytes)
+        {
+            entry.FileError = "Die Datei ist zu groß (max. 10 MB).";
+            return;
+        }
+
+        var contentType = string.IsNullOrWhiteSpace(file.ContentType)
+            ? GuessContentType(file.Name)
+            : file.ContentType;
+        var isPdf = contentType == "application/pdf";
+        var isImage = contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase);
+        if (!isPdf && !isImage)
+        {
+            entry.FileError = "Nur PDF oder Bild erlaubt.";
+            return;
+        }
+
+        try
+        {
+            using var ms = new MemoryStream();
+            await file.OpenReadStream(MaxUploadBytes).CopyToAsync(ms);
+            entry.FileBytes = ms.ToArray();
+            entry.FileName = file.Name;
+            entry.ContentType = contentType;
+        }
+        catch (Exception)
+        {
+            entry.FileError = "Die Datei konnte nicht gelesen werden.";
+        }
+    }
+
+    private static void ClearFile(FieldEntry entry)
+    {
+        entry.FileBytes = null;
+        entry.FileName = null;
+        entry.ContentType = null;
+        entry.FileError = null;
+    }
+
+    private static string GuessContentType(string fileName)
+    {
+        var ext = System.IO.Path.GetExtension(fileName).ToLowerInvariant();
+        return ext switch
+        {
+            ".pdf" => "application/pdf",
+            ".png" => "image/png",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".gif" => "image/gif",
+            ".webp" => "image/webp",
+            ".bmp" => "image/bmp",
+            _ => "application/octet-stream",
+        };
+    }
+
+    private static string FormatSize(long bytes)
+    {
+        if (bytes >= 1024 * 1024) return $"{bytes / 1024d / 1024d:0.0} MB";
+        if (bytes >= 1024) return $"{bytes / 1024d:0} KB";
+        return $"{bytes} B";
+    }
+
     private static string FormatLast(FieldType type, string value)
     {
         if (type == FieldType.Date && DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d))
@@ -298,11 +450,18 @@ else
         public decimal? Dec { get; set; }
         public DateTime? Date { get; set; }
 
+        // Anhang-Felder: im Speicher gehaltene Datei bis zum Speichern.
+        public byte[]? FileBytes { get; set; }
+        public string? FileName { get; set; }
+        public string? ContentType { get; set; }
+        public string? FileError { get; set; }
+
         public string? ToStringValue() => Field.FieldType switch
         {
             FieldType.YesNo => Bool ? "Ja" : "Nein",
             FieldType.SingleLineText => Text,
             FieldType.MultilineText => Text,
+            FieldType.Url => string.IsNullOrWhiteSpace(Text) ? null : Text.Trim(),
             FieldType.Integer => Int?.ToString(CultureInfo.InvariantCulture),
             FieldType.Decimal => Dec?.ToString("0.00", CultureInfo.InvariantCulture),
             FieldType.Date => Date?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
