@@ -118,8 +118,23 @@ public class ProtocolService
             return null; // bereits gelöscht – nichts zu tun
         }
 
+        var articleId = protocol.ArticleId;
         db.InspectionProtocols.Remove(protocol);
         await db.SaveChangesAsync();
+
+        // Prüfstatus des Artikels neu bestimmen: Ergebnis des jüngsten verbleibenden Protokolls
+        // (bzw. "kein Status", wenn keines mehr existiert). Sonst zeigte der Artikel weiterhin den
+        // Status einer soeben gelöschten Prüfung.
+        var article = await db.Articles.FindAsync(articleId);
+        if (article is not null)
+        {
+            article.CurrentInspectionStatus = await db.InspectionProtocols
+                .Where(p => p.ArticleId == articleId)
+                .OrderByDescending(p => p.CreatedAt)
+                .Select(p => (InspectionResult?)p.Result)
+                .FirstOrDefaultAsync();
+            await db.SaveChangesAsync();
+        }
         return null;
     }
 }

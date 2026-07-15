@@ -120,7 +120,7 @@ else
                                 break;
                             case FieldType.Attachment:
                                 <div>
-                                    <InputFile OnChange="@(e => OnFileSelected(entry, e))" accept=".pdf,image/*" />
+                                    <InputFile OnChange="@(e => OnFileSelected(entry, e))" accept=".pdf,image/jpeg,image/png,image/gif,image/webp,image/bmp" />
                                     @if (entry.FileBytes is not null)
                                     {
                                         <div style="display:flex; align-items:center; gap:0.5rem; margin-top:4px; color:#374151; font-size:0.85rem;">
@@ -363,6 +363,16 @@ else
     /// <summary>Maximale Upload-Größe pro Datei (10 MB) – deckt sich mit OpenReadStream-Limit.</summary>
     private const long MaxUploadBytes = 10L * 1024 * 1024;
 
+    /// <summary>
+    /// Erlaubte Anhang-Typen (Allowlist). Bewusst OHNE image/svg+xml: SVG kann aktive Skripte
+    /// enthalten und würde beim Inline-Ausliefern als Stored-XSS wirken. Andere Typen werden
+    /// serverseitig re-kodiert (Fotos) bzw. blockiert.
+    /// </summary>
+    private static readonly HashSet<string> AllowedContentTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "application/pdf", "image/jpeg", "image/png", "image/gif", "image/webp", "image/bmp",
+    };
+
     private async Task OnFileSelected(FieldEntry entry, InputFileChangeEventArgs e)
     {
         entry.FileError = null;
@@ -374,14 +384,12 @@ else
             return;
         }
 
-        var contentType = string.IsNullOrWhiteSpace(file.ContentType)
+        var contentType = (string.IsNullOrWhiteSpace(file.ContentType)
             ? GuessContentType(file.Name)
-            : file.ContentType;
-        var isPdf = contentType == "application/pdf";
-        var isImage = contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase);
-        if (!isPdf && !isImage)
+            : file.ContentType).Trim().ToLowerInvariant();
+        if (!AllowedContentTypes.Contains(contentType))
         {
-            entry.FileError = "Nur PDF oder Bild erlaubt.";
+            entry.FileError = "Nur PDF oder Bild (JPEG, PNG, GIF, WebP, BMP) erlaubt.";
             return;
         }
 

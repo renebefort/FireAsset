@@ -87,27 +87,29 @@
 
     private async Task Save()
     {
+        // Guard vor der ersten asynchronen Prüfung setzen, damit ein Doppelklick nicht zwei
+        // Speichervorgänge (und damit doppelte Standorte) auslösen kann.
         if (_saving) return;
-        if (string.IsNullOrWhiteSpace(_location.Name))
-        {
-            Notify("Der Name ist erforderlich.");
-            return;
-        }
-        if (_location.Id != 0 && await LocationService.WouldCreateCycleAsync(_location.Id, _location.ParentLocationId))
-        {
-            Notify("Ungültige Auswahl: Ein Standort kann nicht sich selbst oder einem Nachfahren untergeordnet werden.");
-            return;
-        }
-        if (!string.IsNullOrWhiteSpace(_location.Barcode) &&
-            await LocationService.BarcodeExistsAsync(_location.Barcode, _location.Id == 0 ? null : _location.Id))
-        {
-            Notify("Dieser Barcode wird bereits verwendet.");
-            return;
-        }
-
         _saving = true;
         try
         {
+            if (string.IsNullOrWhiteSpace(_location.Name))
+            {
+                Notify("Der Name ist erforderlich.");
+                return;
+            }
+            if (_location.Id != 0 && await LocationService.WouldCreateCycleAsync(_location.Id, _location.ParentLocationId))
+            {
+                Notify("Ungültige Auswahl: Ein Standort kann nicht sich selbst oder einem Nachfahren untergeordnet werden.");
+                return;
+            }
+            if (!string.IsNullOrWhiteSpace(_location.Barcode) &&
+                await LocationService.BarcodeExistsAsync(_location.Barcode, _location.Id == 0 ? null : _location.Id))
+            {
+                Notify("Dieser Barcode wird bereits verwendet.");
+                return;
+            }
+
             var error = _location.Id == 0
                 ? await LocationService.CreateAsync(_location)
                 : await LocationService.UpdateAsync(_location);

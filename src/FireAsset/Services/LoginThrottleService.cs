@@ -13,6 +13,10 @@ public class LoginThrottleService
     private static readonly TimeSpan FailureWindow = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
 
+    // Ab dieser Größe werden abgelaufene Einträge aufgeräumt. Verhindert unbegrenztes Wachstum,
+    // wenn Anmeldeversuche mit vielen verschiedenen (Zufalls-)E-Mail-Adressen erfolgen.
+    private const int PruneThreshold = 10_000;
+
     private sealed class Entry
     {
         public int Failures;
@@ -35,6 +39,11 @@ public class LoginThrottleService
 
     public void RegisterFailure(string email)
     {
+        if (_entries.Count >= PruneThreshold)
+        {
+            PruneExpired();
+        }
+
         var entry = _entries.GetOrAdd(Normalize(email), _ => new Entry());
         lock (entry)
         {
@@ -54,6 +63,22 @@ public class LoginThrottleService
     }
 
     public void RegisterSuccess(string email) => _entries.TryRemove(Normalize(email), out _);
+
+    /// <summary>Entfernt Einträge ohne aktive Sperre und ohne laufendes Fehlversuchs-Fenster.</summary>
+    private void PruneExpired()
+    {
+        var now = DateTime.UtcNow;
+        foreach (var kv in _entries)
+        {
+            var e = kv.Value;
+            var locked = e.LockedUntilUtc is DateTime until && until > now;
+            var windowActive = e.Failures > 0 && now - e.FirstFailureUtc <= FailureWindow;
+            if (!locked && !windowActive)
+            {
+                _entries.TryRemove(kv.Key, out _);
+            }
+        }
+    }
 
     private static string Normalize(string email) => email.Trim().ToLowerInvariant();
 }

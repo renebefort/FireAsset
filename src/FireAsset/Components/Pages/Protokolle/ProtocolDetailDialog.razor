@@ -69,7 +69,7 @@ else
                             @field.Label
                             @if (!string.IsNullOrEmpty(field.Unit)) { <span style="font-weight:400"> (@field.Unit)</span> }
                         </div>
-                        @if (field.FieldType == FieldType.Url && !string.IsNullOrWhiteSpace(Value(field.Id)))
+                        @if (field.FieldType == FieldType.Url && IsSafeUrl(Value(field.Id)))
                         {
                             <a href="@Value(field.Id)" target="_blank" rel="noopener">@Value(field.Id)</a>
                         }
@@ -115,6 +115,16 @@ else
     }
 
     private string? Value(int fieldId) => _values.TryGetValue(fieldId, out var v) ? v : null;
+
+    /// <summary>
+    /// Nur http/https als anklickbaren Link zulassen. Verhindert, dass ein gespeicherter
+    /// Wert wie "javascript:…" beim Klick als Skript im angemeldeten Kontext ausgeführt wird
+    /// (Stored XSS); unsichere Werte werden stattdessen als reiner Text angezeigt.
+    /// </summary>
+    private static bool IsSafeUrl(string? value) =>
+        !string.IsNullOrWhiteSpace(value)
+        && Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri)
+        && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
 
     /// <summary>Snapshot-Name bevorzugt: bleibt auch nach Löschung des Benutzers erhalten.</summary>
     private string InspectorName() =>

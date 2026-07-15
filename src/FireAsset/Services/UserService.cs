@@ -32,7 +32,8 @@ public class UserService
     {
         await using var db = await _factory.CreateDbContextAsync();
         var normalized = email.Trim();
-        // E-Mail-Spalte ist NOCASE-kollationiert: Vergleich ist case-insensitiv und nutzt den Index.
+        // Vergleich ist über die Standard-Collation des SQL Servers (…_CI_AS) case-insensitiv und
+        // nutzt den Unique-Index auf Email.
         var user = await db.Users
             .FirstOrDefaultAsync(u => u.Email == normalized && u.IsActive);
 

@@ -1,5 +1,5 @@
 @page "/stammdaten/benutzer"
-@attribute [Authorize]
+@attribute [Authorize(Roles = "Administrator")]
 @inject UserService UserService
 @inject NotificationService Notifications
 @inject AdaptiveDialogService Dialogs

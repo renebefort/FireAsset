@@ -127,7 +127,8 @@ public class ArticleService
                 .Where(t => t.ArticleId == existing.Id && !t.IsManual && t.Status != InspectionTaskStatus.Erledigt)
                 .ToListAsync();
             db.InspectionTasks.RemoveRange(openAutoTasks);
-            messages = await _taskGeneration.AddInitialTasksAsync(db, existing);
+            // Kein Nachziehen der Eingangskontrolle beim Kategoriewechsel – die entsteht nur bei Neuanlage.
+            messages = await _taskGeneration.AddInitialTasksAsync(db, existing, includeEntryControl: false);
         }
 
         try

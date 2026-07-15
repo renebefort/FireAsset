@@ -231,31 +231,34 @@
 
     private async Task Save()
     {
+        // Guard sofort setzen (deaktiviert den Button), bevor die erste asynchrone Prüfung läuft –
+        // sonst kann ein Doppelklick beide Aufrufe an der Eindeutigkeitsprüfung vorbeischleusen und
+        // einen doppelten Artikel samt doppelter Aufgaben anlegen.
         if (_saving) return;
-        if (string.IsNullOrWhiteSpace(_article.Identification))
-        {
-            Notify("Die Identifikation / der Name ist erforderlich.");
-            return;
-        }
-        if (_article.CategoryId == 0)
-        {
-            Notify("Bitte eine Kategorie wählen.");
-            return;
-        }
-        if (!string.IsNullOrWhiteSpace(_article.Barcode) &&
-            await ArticleService.BarcodeExistsAsync(_article.Barcode, _article.Id == 0 ? null : _article.Id))
-        {
-            Notify("Dieser Barcode wird bereits verwendet.");
-            return;
-        }
-
-        _article.ProductionDate = _productionDate;
-        _article.DecommissionDate = _decommissionDate;
-        _article.EndDate = _endDate;
-
         _saving = true;
         try
         {
+            if (string.IsNullOrWhiteSpace(_article.Identification))
+            {
+                Notify("Die Identifikation / der Name ist erforderlich.");
+                return;
+            }
+            if (_article.CategoryId == 0)
+            {
+                Notify("Bitte eine Kategorie wählen.");
+                return;
+            }
+            if (!string.IsNullOrWhiteSpace(_article.Barcode) &&
+                await ArticleService.BarcodeExistsAsync(_article.Barcode, _article.Id == 0 ? null : _article.Id))
+            {
+                Notify("Dieser Barcode wird bereits verwendet.");
+                return;
+            }
+
+            _article.ProductionDate = _productionDate;
+            _article.DecommissionDate = _decommissionDate;
+            _article.EndDate = _endDate;
+
             var (error, messages) = _article.Id == 0
                 ? await ArticleService.CreateAsync(_article, UserId)
                 : await ArticleService.UpdateAsync(_article, UserId);
