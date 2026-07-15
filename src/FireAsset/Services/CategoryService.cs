@@ -59,6 +59,7 @@ public class CategoryService
         existing.Name = category.Name.Trim();
         existing.Description = category.Description;
         existing.IsActive = category.IsActive;
+        existing.ContactUserId = category.ContactUserId;
         try
         {
             await db.SaveChangesAsync();
@@ -150,6 +151,7 @@ public class CategoryService
         existing.IntervalMonths = interval.IntervalMonths;
         existing.FormId = interval.FormId;
         existing.IsActive = interval.IsActive;
+        existing.IsEntryControl = interval.IsEntryControl;
 
         var created = 0;
         if (!wasUsable && existing.IsActive && existing.FormId is not null)
@@ -177,6 +179,19 @@ public class CategoryService
             db.InspectionIntervals.Remove(interval);
             await db.SaveChangesAsync();
         }
+    }
+
+    /// <summary>
+    /// Auswählbare Ansprechpartner: aktive Benutzer, plus der ggf. bereits gesetzte (auch wenn
+    /// inaktiv), damit eine bestehende Zuordnung im Dropdown sichtbar bleibt.
+    /// </summary>
+    public async Task<List<User>> GetSelectableContactsAsync(int? includeUserId)
+    {
+        await using var db = await _factory.CreateDbContextAsync();
+        return await db.Users
+            .Where(u => u.IsActive || (includeUserId != null && u.Id == includeUserId))
+            .OrderBy(u => u.LastName).ThenBy(u => u.FirstName)
+            .ToListAsync();
     }
 
     /// <summary>Formulare für die Auswahl im Intervall (leer, bis Formulare in M4 gepflegt werden).</summary>

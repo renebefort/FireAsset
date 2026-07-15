@@ -30,13 +30,50 @@ public class TaskGenerationService
 
         foreach (var interval in intervals)
         {
-            var message = AddTask(db, article, interval);
+            var message = interval.IsEntryControl
+                ? await AddEntryControlTaskAsync(db, article, interval)
+                : AddTask(db, article, interval);
             if (message is not null)
             {
                 messages.Add(message);
             }
         }
         return messages;
+    }
+
+    /// <summary>
+    /// Legt für ein Eingangskontroll-Intervall genau einmal eine Aufgabe an (Fälligkeit = heute,
+    /// dem Anlagedatum des Artikels). Keine Folgeaufgaben. Gibt bei Nichtanlage die Begründung zurück.
+    /// </summary>
+    private static async Task<string?> AddEntryControlTaskAsync(AppDbContext db, Article article, InspectionInterval interval)
+    {
+        if (interval.FormId is null)
+        {
+            return $"Eingangskontrolle „{interval.Name}“ übersprungen: kein Formular hinterlegt.";
+        }
+        if (!article.IsActive)
+        {
+            return $"Keine Eingangskontrolle für „{interval.Name}“ erstellt: Der Artikel ist inaktiv.";
+        }
+        // Genau einmal: existiert für diesen (bereits gespeicherten) Artikel schon eine Aufgabe
+        // dieses Intervalls, wird keine weitere angelegt.
+        if (article.Id != 0 &&
+            await db.InspectionTasks.AnyAsync(t => t.ArticleId == article.Id && t.IntervalId == interval.Id))
+        {
+            return null;
+        }
+
+        db.InspectionTasks.Add(new InspectionTask
+        {
+            Article = article,
+            IntervalId = interval.Id,
+            FormId = interval.FormId.Value,
+            DueDate = DateTime.Today,
+            Status = InspectionTaskStatus.Neu,
+            IsManual = false,
+            CreatedAt = DateTime.UtcNow,
+        });
+        return null;
     }
 
     /// <summary>
@@ -49,6 +86,10 @@ public class TaskGenerationService
         if (task.Interval is null)
         {
             return null; // manuelle Aufgabe – keine Folge
+        }
+        if (task.Interval.IsEntryControl)
+        {
+            return null; // Eingangskontrolle ist einmalig – keine Folgeaufgabe
         }
         if (!task.Interval.IsActive || task.Interval.FormId is null)
         {
@@ -111,6 +152,12 @@ public class TaskGenerationService
     /// </summary>
     public async Task<int> AddMissingTasksForIntervalAsync(AppDbContext db, InspectionInterval interval)
     {
+        // Eingangskontrolle entsteht ausschließlich bei der Neuanlage eines Artikels –
+        // kein nachträgliches Nachziehen für bestehende Artikel.
+        if (interval.IsEntryControl)
+        {
+            return 0;
+        }
         if (!interval.IsActive || interval.FormId is null)
         {
             return 0;

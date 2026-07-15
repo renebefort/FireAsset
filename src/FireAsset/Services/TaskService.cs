@@ -36,7 +36,27 @@ public class TaskService
         string? LocationBarcode,
         string IntervalName,
         string FormName,
-        DateTime? ArticleEndDate);
+        DateTime? ArticleEndDate,
+        string? ContactName);
+
+    /// <summary>Kurzinfo der direkt zu ladenden Aufgabe (Schnellaktion "Prüfung starten").</summary>
+    public record NextTask(int TaskId, int ArticleId, int FormId, string ArticleIdentification, DateTime DueDate);
+
+    /// <summary>
+    /// Liefert für einen Artikel die offene Aufgabe mit dem kleinsten Fälligkeitsdatum (oder null,
+    /// wenn keine offene Aufgabe existiert). Basis für den Barcode-Schnelleinstieg in die Prüfung.
+    /// </summary>
+    public async Task<NextTask?> GetNextOpenTaskByArticleAsync(int articleId)
+    {
+        await using var db = await _factory.CreateDbContextAsync();
+        return await db.InspectionTasks
+            .Where(t => t.ArticleId == articleId
+                        && t.Status != InspectionTaskStatus.Erledigt
+                        && t.Status != InspectionTaskStatus.Stillgelegt)
+            .OrderBy(t => t.DueDate)
+            .Select(t => new NextTask(t.Id, t.ArticleId, t.FormId, t.Article.Identification, t.DueDate))
+            .FirstOrDefaultAsync();
+    }
 
     public async Task<List<TaskListItem>> GetTasksAsync(bool includeDone)
     {
@@ -79,7 +99,10 @@ public class TaskService
                 t.Article.Location != null ? t.Article.Location.Barcode : null,
                 t.Interval != null ? t.Interval.Name : "(manuell)",
                 t.Form.Name,
-                t.Article.EndDate))
+                t.Article.EndDate,
+                t.Article.Category != null && t.Article.Category.ContactUser != null
+                    ? t.Article.Category.ContactUser.FirstName + " " + t.Article.Category.ContactUser.LastName
+                    : null))
             .ToListAsync();
     }
 

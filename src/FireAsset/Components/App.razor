@@ -5,6 +5,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <ResourcePreloader />
     <link rel="stylesheet" href="_content/Radzen.Blazor/css/material.css" />
     <link rel="stylesheet" href="@Assets["app.css"]" />
@@ -17,6 +18,27 @@
     <Routes @rendermode="RenderModeForPage" />
     <ReconnectModal />
     <script src="_content/Radzen.Blazor/Radzen.Blazor.js"></script>
+    <script>
+        // Viewport-Check für AdaptiveDialogService: derselbe Breakpoint wie das
+        // Vollbild-Sheet in app.css (<= 768px => Draggable/Resizable aus).
+        window.faViewport = {
+            isCompact: () => window.matchMedia('(max-width: 768px)').matches
+        };
+
+        // Download eines serverseitig erzeugten Streams (z. B. ZIP der Protokoll-PDFs).
+        window.downloadFileFromStream = async (fileName, contentStreamReference) => {
+            const arrayBuffer = await contentStreamReference.arrayBuffer();
+            const blob = new Blob([arrayBuffer]);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName ?? 'download';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        };
+    </script>
     <script src="@Assets["_framework/blazor.web.js"]"></script>
 </body>
 

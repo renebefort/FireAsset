@@ -2,7 +2,7 @@
 @attribute [Authorize]
 @inject UserService UserService
 @inject NotificationService Notifications
-@inject DialogService Dialogs
+@inject AdaptiveDialogService Dialogs
 
 <PageTitle>Benutzer · Asset Manager</PageTitle>
 
@@ -12,7 +12,7 @@
 </RadzenStack>
 
 <RadzenDataGrid Data="@_users" TItem="User" AllowSorting="true"
-                AllowFiltering="true" FilterMode="FilterMode.Advanced" GridLines="DataGridGridLines.Both" AllowColumnResize="true"
+                AllowFiltering="true" FilterMode="FilterMode.CheckBoxList" GridLines="DataGridGridLines.Both" AllowColumnResize="true"
                 AllowColumnPicking="true" AllowPaging="true" PageSize="20"
                 PageSizeOptions="@(new int[] { 10, 20, 50, 100 })" ShowPagingSummary="true"
                 RowDoubleClick="@(args => OpenEditor(args.Data!.Id))">
@@ -22,6 +22,9 @@
         <RadzenDataGridColumn TItem="User" Property="Email" Title="E-Mail" />
         <RadzenDataGridColumn TItem="User" Property="IsActive" Title="Aktiv" Width="90px" TextAlign="TextAlign.Center">
             <Template Context="user"><RadzenCheckBox Value="user.IsActive" Disabled="true" /></Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="User" Property="IsAdmin" Title="Administrator" Width="120px" TextAlign="TextAlign.Center">
+            <Template Context="user"><RadzenCheckBox Value="user.IsAdmin" Disabled="true" /></Template>
         </RadzenDataGridColumn>
         <RadzenDataGridColumn TItem="User" Context="user" Title="Aktionen" Sortable="false" Filterable="false" Pickable="false" Width="140px" TextAlign="TextAlign.Center">
             <Template Context="user">

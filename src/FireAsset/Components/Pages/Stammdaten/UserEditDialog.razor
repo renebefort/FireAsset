@@ -28,6 +28,10 @@
         <input type="checkbox" @bind="_user.IsActive" /> Aktiv
     </label>
 
+    <label class="fa-checkbox">
+        <input type="checkbox" @bind="_user.IsAdmin" /> Administrator
+    </label>
+
     <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem">
         <RadzenButton Text="Abbrechen" ButtonStyle="ButtonStyle.Light" Click="() => Dialogs.Close(false)" />
         <RadzenButton Text="Speichern" ButtonStyle="ButtonStyle.Primary" Icon="save" Click="Save" Disabled="@_saving" />

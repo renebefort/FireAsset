@@ -75,7 +75,7 @@
     }
 
     <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center" Gap="0.5rem" class="rz-mt-2">
-        <RadzenButton Icon="add" Text="Feld hinzufügen" Size="ButtonSize.Small" Click="AddField" />
+        <RadzenButton Icon="add" Text="Feld hinzufügen" Click="AddField" />
         <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem">
             <RadzenButton Text="Abbrechen" ButtonStyle="ButtonStyle.Light" Click="() => Dialogs.Close(false)" />
             <RadzenButton Text="Speichern" ButtonStyle="ButtonStyle.Primary" Icon="save" Click="Save" Disabled="@_saving" />
@@ -87,12 +87,25 @@
     [Parameter] public int? FormId { get; set; }
     [Parameter] public int? UserId { get; set; }
 
+    /// <summary>Wenn gesetzt: Felder dieses Formulars als Vorlage laden und als NEUES Formular speichern.</summary>
+    [Parameter] public int? CopyFromFormId { get; set; }
+
     private bool _saving;
     private FormEditModel _model = new();
 
     protected override async Task OnInitializedAsync()
     {
-        if (FormId is int id)
+        if (CopyFromFormId is int copyId)
+        {
+            // Kopie: Felder der aktuellen Version übernehmen, aber als neues Formular (FormId = null)
+            // mit eigener Versionshistorie ab v1 speichern.
+            _model = await FormService.GetEditModelAsync(copyId) ?? new FormEditModel();
+            _model.FormId = null;
+            _model.Version = 0;
+            _model.IsActive = true;
+            _model.Name = $"Kopie von {_model.Name}".Trim();
+        }
+        else if (FormId is int id)
         {
             _model = await FormService.GetEditModelAsync(id) ?? new FormEditModel { FormId = id };
         }

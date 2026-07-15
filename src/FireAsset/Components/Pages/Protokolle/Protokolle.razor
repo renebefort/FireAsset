@@ -1,14 +1,21 @@
 @page "/protokolle"
 @attribute [Authorize]
 @inject ProtocolService ProtocolService
-@inject DialogService Dialogs
+@inject ProtocolPdfExportService PdfExport
+@inject AdaptiveDialogService Dialogs
+@inject NotificationService Notifications
+@inject IJSRuntime JS
 
 <PageTitle>Protokolle · Asset Manager</PageTitle>
 
-<RadzenText TextStyle="TextStyle.H4" class="rz-mb-3">Prüfprotokolle</RadzenText>
+<RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center" class="rz-mb-3">
+    <RadzenText TextStyle="TextStyle.H4" class="rz-my-0">Prüfprotokolle</RadzenText>
+    <RadzenButton Icon="picture_as_pdf" Text="Gefilterte als PDF exportieren" ButtonStyle="ButtonStyle.Secondary"
+                  Click="ExportFilteredAsync" Disabled="@_exporting" />
+</RadzenStack>
 
-<RadzenDataGrid Data="@_protocols" TItem="ProtocolService.ProtocolListItem" AllowSorting="true"
-                AllowFiltering="true" FilterMode="FilterMode.Advanced" GridLines="DataGridGridLines.Both" AllowColumnResize="true"
+<RadzenDataGrid @ref="_grid" Data="@_protocols" TItem="ProtocolService.ProtocolListItem" AllowSorting="true"
+                AllowFiltering="true" FilterMode="FilterMode.CheckBoxList" GridLines="DataGridGridLines.Both" AllowColumnResize="true"
                 AllowColumnPicking="true" AllowPaging="true" PageSize="25"
                 PageSizeOptions="@(new int[] { 10, 25, 50, 100 })" ShowPagingSummary="true"
                 RowDoubleClick="@(args => OpenDetail(args.Data!.Id))">
@@ -29,25 +36,93 @@
             <Template Context="p">@(p.IsUnplanned ? "ungeplant" : "geplant")</Template>
         </RadzenDataGridColumn>
         <RadzenDataGridColumn TItem="ProtocolService.ProtocolListItem" Property="CreatedByName" Title="Erfasst von" Width="150px" />
-        <RadzenDataGridColumn TItem="ProtocolService.ProtocolListItem" Context="p" Title="Aktion" Width="80px" Sortable="false" Filterable="false" Pickable="false" TextAlign="TextAlign.Center">
+        <RadzenDataGridColumn TItem="ProtocolService.ProtocolListItem" Context="p" Title="Aktion" Width="@(_isAdmin ? "120px" : "80px")" Sortable="false" Filterable="false" Pickable="false" TextAlign="TextAlign.Center">
             <Template Context="p">
                 <RadzenButton Icon="visibility" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light" Click="() => OpenDetail(p.Id)" title="Detail öffnen" />
+                @if (_isAdmin)
+                {
+                    <RadzenButton Icon="delete" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Danger" Click="() => DeleteRow(p)" title="Protokoll löschen" class="rz-ml-1" />
+                }
             </Template>
         </RadzenDataGridColumn>
     </Columns>
 </RadzenDataGrid>
 
 @code {
-    private List<ProtocolService.ProtocolListItem> _protocols = new();
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthState { get; set; }
 
-    protected override async Task OnInitializedAsync() => await Reload();
+    private List<ProtocolService.ProtocolListItem> _protocols = new();
+    private RadzenDataGrid<ProtocolService.ProtocolListItem>? _grid;
+    private bool _exporting;
+    private int? _currentUserId;
+    private bool _isAdmin;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState is not null)
+        {
+            var state = await AuthState;
+            var id = state.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (int.TryParse(id, out var parsed)) _currentUserId = parsed;
+            _isAdmin = state.User.IsInRole("Administrator");
+        }
+        await Reload();
+    }
 
     private async Task Reload() => _protocols = await ProtocolService.GetListAsync();
+
+    /// <summary>Exportiert alle aktuell im Grid gefilterten Protokolle als ZIP (ein PDF je Protokoll).</summary>
+    private async Task ExportFilteredAsync()
+    {
+        if (_exporting || _grid is null) return;
+
+        // View = die gefilterte und sortierte Ansicht (über alle Seiten hinweg).
+        var ids = _grid.View.Select(p => p.Id).ToList();
+        if (ids.Count == 0)
+        {
+            Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Info, Summary = "Hinweis", Detail = "Keine Protokolle im aktuellen Filter.", Duration = 4000 });
+            return;
+        }
+
+        _exporting = true;
+        try
+        {
+            var zip = await PdfExport.BuildZipAsync(ids);
+            using var stream = new MemoryStream(zip);
+            using var streamRef = new DotNetStreamReference(stream);
+            await JS.InvokeVoidAsync("downloadFileFromStream", "protokolle-pdf.zip", streamRef);
+            Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = "Export", Detail = $"{ids.Count} Protokoll(e) als PDF exportiert.", Duration = 5000 });
+        }
+        finally
+        {
+            _exporting = false;
+        }
+    }
 
     private async Task OpenDetail(int id)
     {
         await Dialogs.OpenAsync<ProtocolDetailDialog>("Protokoll-Detail",
             new Dictionary<string, object?> { ["ProtocolId"] = id },
             new DialogOptions { Width = "800px", Height = "85%", Resizable = true, Draggable = true });
+    }
+
+    private async Task DeleteRow(ProtocolService.ProtocolListItem p)
+    {
+        var confirmed = await Dialogs.Confirm(
+            $"Prüfprotokoll für \"{p.ArticleIdentification}\" vom {p.CompletedDate:dd.MM.yyyy} wirklich löschen? " +
+            "Das kann nicht rückgängig gemacht werden.",
+            "Protokoll löschen",
+            new ConfirmOptions { OkButtonText = "Löschen", CancelButtonText = "Abbrechen" });
+        if (confirmed != true) return;
+
+        var error = await ProtocolService.DeleteAsync(p.Id, _currentUserId);
+        if (error is not null)
+        {
+            Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Warning, Summary = "Hinweis", Detail = error, Duration = 4000 });
+            return;
+        }
+        Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = "Gelöscht", Detail = "Das Prüfprotokoll wurde gelöscht.", Duration = 4000 });
+        await Reload();
     }
 }

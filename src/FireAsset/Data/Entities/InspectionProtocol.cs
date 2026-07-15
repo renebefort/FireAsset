@@ -40,4 +40,7 @@ public class InspectionProtocol
     public string? CreatedByUserName { get; set; }
 
     public ICollection<ProtocolFieldValue> FieldValues { get; set; } = new List<ProtocolFieldValue>();
+
+    /// <summary>Hochgeladene Dateien zu Anhang-Feldern dieses Protokolls.</summary>
+    public ICollection<ProtocolFieldAttachment> Attachments { get; set; } = new List<ProtocolFieldAttachment>();
 }

@@ -22,7 +22,7 @@ public class ArticleService
     {
         await using var db = await _factory.CreateDbContextAsync();
         return await db.Articles
-            .Include(a => a.Category)
+            .Include(a => a.Category).ThenInclude(c => c.ContactUser)
             .Include(a => a.Location)
             .OrderBy(a => a.Identification)
             .ToListAsync();
@@ -105,6 +105,7 @@ public class ArticleService
         existing.ManufacturerNumber = article.ManufacturerNumber;
         existing.InventoryNumber = article.InventoryNumber;
         existing.Barcode = article.Barcode;
+        existing.PurchasePrice = article.PurchasePrice;
         existing.AcquisitionDate = article.AcquisitionDate;
         existing.ProductionDate = article.ProductionDate;
         existing.DecommissionDate = article.DecommissionDate;
@@ -199,10 +200,116 @@ public class ArticleService
         return (true, $"„{article.Identification}“ wurde nach „{location.Name}“ umgelagert.");
     }
 
+    /// <summary>Barcode + Identifikation aller Artikel mit Barcode – für die Live-Vorschläge der Schnellaktionen.</summary>
+    public record BarcodeSuggestion(string Barcode, string Identification);
+
+    public async Task<List<BarcodeSuggestion>> GetBarcodeSuggestionsAsync()
+    {
+        await using var db = await _factory.CreateDbContextAsync();
+        return await db.Articles
+            .Where(a => a.Barcode != null && a.Barcode != "")
+            .OrderBy(a => a.Barcode)
+            .Select(a => new BarcodeSuggestion(a.Barcode!, a.Identification))
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Bucht mehrere Artikel gemeinsam auf einen Zielstandort (Schnellaktion Stapel-Standortwechsel).
+    /// Gibt die Anzahl umgelagerter Artikel und ggf. eine Fehlermeldung zurück.
+    /// </summary>
+    public async Task<(int moved, string? error)> ChangeLocationForArticlesAsync(
+        IReadOnlyList<int> articleIds, int locationId, int? userId)
+    {
+        if (articleIds.Count == 0) return (0, "Keine Artikel in der Liste.");
+
+        await using var db = await _factory.CreateDbContextAsync();
+        var location = await db.Locations.FindAsync(locationId);
+        if (location is null) return (0, "Der Zielstandort existiert nicht mehr.");
+
+        var articles = await db.Articles.Where(a => articleIds.Contains(a.Id)).ToListAsync();
+        var now = DateTime.UtcNow;
+        foreach (var article in articles)
+        {
+            article.LocationId = locationId;
+            article.ModifiedAt = now;
+            article.ModifiedByUserId = userId;
+        }
+        await db.SaveChangesAsync();
+        return (articles.Count, null);
+    }
+
     public async Task<List<Category>> GetActiveCategoriesAsync()
     {
         await using var db = await _factory.CreateDbContextAsync();
         return await db.Categories.Where(c => c.IsActive).OrderBy(c => c.Name).ToListAsync();
+    }
+
+    // --- Artikel-Foto ---------------------------------------------------------------------
+
+    /// <summary>Bilddaten eines Fotos (Detail- oder Thumbnail-Variante) für den Auslieferungs-Endpoint.</summary>
+    public record PhotoData(byte[] Data, string ContentType);
+
+    /// <summary>Legt das (bereits verkleinerte) Foto an bzw. ersetzt ein vorhandenes.</summary>
+    public async Task SavePhotoAsync(int articleId, ImageProcessing.ProcessedImage processed)
+    {
+        await using var db = await _factory.CreateDbContextAsync();
+        var photo = await db.ArticlePhotos.FirstOrDefaultAsync(p => p.ArticleId == articleId);
+        if (photo is null)
+        {
+            photo = new ArticlePhoto { ArticleId = articleId };
+            db.ArticlePhotos.Add(photo);
+        }
+        photo.ContentType = "image/jpeg";
+        photo.Data = processed.Detail;
+        photo.Thumbnail = processed.Thumbnail;
+        photo.SizeBytes = processed.Detail.LongLength;
+        photo.CreatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+    }
+
+    public async Task DeletePhotoAsync(int articleId)
+    {
+        await using var db = await _factory.CreateDbContextAsync();
+        await db.ArticlePhotos.Where(p => p.ArticleId == articleId).ExecuteDeleteAsync();
+    }
+
+    /// <summary>Übernimmt das Foto eines Quell-Artikels auf einen Ziel-Artikel (z. B. beim Kopieren).</summary>
+    public async Task CopyPhotoAsync(int sourceArticleId, int targetArticleId)
+    {
+        await using var db = await _factory.CreateDbContextAsync();
+        var source = await db.ArticlePhotos.AsNoTracking().FirstOrDefaultAsync(p => p.ArticleId == sourceArticleId);
+        if (source is null) return;
+
+        var target = await db.ArticlePhotos.FirstOrDefaultAsync(p => p.ArticleId == targetArticleId);
+        if (target is null)
+        {
+            target = new ArticlePhoto { ArticleId = targetArticleId };
+            db.ArticlePhotos.Add(target);
+        }
+        target.ContentType = source.ContentType;
+        target.Data = source.Data;
+        target.Thumbnail = source.Thumbnail;
+        target.SizeBytes = source.SizeBytes;
+        target.CreatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+    }
+
+    /// <summary>Liefert die gewünschte Foto-Variante oder null.</summary>
+    public async Task<PhotoData?> GetPhotoAsync(int articleId, bool thumbnail)
+    {
+        await using var db = await _factory.CreateDbContextAsync();
+        return await db.ArticlePhotos
+            .Where(p => p.ArticleId == articleId)
+            .Select(p => new PhotoData(thumbnail ? p.Thumbnail : p.Data, p.ContentType))
+            .FirstOrDefaultAsync();
+    }
+
+    /// <summary>Ids aller Artikel, die ein Foto besitzen (für die Grid-Anzeige, ohne Blobs zu laden).</summary>
+    public async Task<HashSet<int>> GetPhotoArticleIdsAsync()
+    {
+        await using var db = await _factory.CreateDbContextAsync();
+        var ids = await db.ArticlePhotos.Select(p => p.ArticleId).ToListAsync();
+        return ids.ToHashSet();
     }
 
     private static void Normalize(Article article)

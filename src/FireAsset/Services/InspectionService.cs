@@ -30,6 +30,9 @@ public class InspectionService
         public static ExecuteResult Success(string? followUpInfo) => new(true, null, followUpInfo);
     }
 
+    /// <summary>Eine beim Erfassen hochgeladene Datei zu einem Anhang-Feld.</summary>
+    public record AttachmentInput(int FieldId, string FileName, string ContentType, byte[] Data);
+
     public async Task<CaptureModel?> GetCaptureModelAsync(int formId, int articleId)
     {
         await using var db = await _factory.CreateDbContextAsync();
@@ -72,7 +75,8 @@ public class InspectionService
     /// Transaktion. Doppelte Abschlüsse (Doppelklick, zweiter Bearbeiter) werden abgewiesen.
     /// </summary>
     public async Task<ExecuteResult> ExecuteTaskAsync(int taskId, int formVersionId, Dictionary<int, string?> values,
-        InspectionResult result, string? notes, DateTime completedDate, DateTime? newDueDate, int? userId)
+        InspectionResult result, string? notes, DateTime completedDate, DateTime? newDueDate, int? userId,
+        IReadOnlyList<AttachmentInput>? attachments = null)
     {
         if (completedDate.Date > DateTime.Today)
         {
@@ -99,7 +103,7 @@ public class InspectionService
             .Include(t => t.Form)
             .FirstAsync(t => t.Id == taskId);
 
-        var validationError = await ValidateSubmissionAsync(db, task.Form, formVersionId, values);
+        var validationError = await ValidateSubmissionAsync(db, task.Form, formVersionId, values, attachments);
         if (validationError is not null)
         {
             return ExecuteResult.Fail(validationError); // Rollback über Dispose der Transaktion
@@ -123,6 +127,7 @@ public class InspectionService
             CreatedByUserId = userId,
             CreatedByUserName = await GetUserNameAsync(db, userId),
             FieldValues = values.Select(kv => new ProtocolFieldValue { FormFieldId = kv.Key, Value = kv.Value }).ToList(),
+            Attachments = BuildAttachments(attachments),
         });
         task.Article.CurrentInspectionStatus = result;
 
@@ -139,7 +144,7 @@ public class InspectionService
 
     /// <summary>Führt eine ungeplante Prüfung ohne Auswirkung auf Aufgaben durch.</summary>
     public async Task<ExecuteResult> ExecuteUnplannedAsync(int articleId, int formVersionId, Dictionary<int, string?> values,
-        InspectionResult result, string? notes, int? userId)
+        InspectionResult result, string? notes, int? userId, IReadOnlyList<AttachmentInput>? attachments = null)
     {
         await using var db = await _factory.CreateDbContextAsync();
         var article = await db.Articles.FindAsync(articleId);
@@ -149,7 +154,7 @@ public class InspectionService
         }
 
         var form = await db.Forms.FirstOrDefaultAsync(f => f.CurrentVersionId == formVersionId);
-        var validationError = await ValidateSubmissionAsync(db, form, formVersionId, values);
+        var validationError = await ValidateSubmissionAsync(db, form, formVersionId, values, attachments);
         if (validationError is not null)
         {
             return ExecuteResult.Fail(validationError);
@@ -168,10 +173,25 @@ public class InspectionService
             CreatedByUserId = userId,
             CreatedByUserName = await GetUserNameAsync(db, userId),
             FieldValues = values.Select(kv => new ProtocolFieldValue { FormFieldId = kv.Key, Value = kv.Value }).ToList(),
+            Attachments = BuildAttachments(attachments),
         });
         article.CurrentInspectionStatus = result;
         await db.SaveChangesAsync();
         return ExecuteResult.Success(null);
+    }
+
+    private static List<ProtocolFieldAttachment> BuildAttachments(IReadOnlyList<AttachmentInput>? attachments)
+    {
+        if (attachments is null) return new();
+        return attachments.Select(a => new ProtocolFieldAttachment
+        {
+            FormFieldId = a.FieldId,
+            FileName = a.FileName,
+            ContentType = a.ContentType,
+            SizeBytes = a.Data.LongLength,
+            Data = a.Data,
+            CreatedAt = DateTime.UtcNow,
+        }).ToList();
     }
 
     /// <summary>
@@ -179,7 +199,7 @@ public class InspectionService
     /// alle Feld-Ids zu dieser Version gehören (Schutz vor veralteten/manipulierten Dialogen).
     /// </summary>
     private static async Task<string?> ValidateSubmissionAsync(AppDbContext db, Form? form, int formVersionId,
-        Dictionary<int, string?> values)
+        Dictionary<int, string?> values, IReadOnlyList<AttachmentInput>? attachments)
     {
         if (form is null || form.CurrentVersionId != formVersionId)
         {
@@ -190,7 +210,8 @@ public class InspectionService
             .Where(f => f.FormVersionId == formVersionId)
             .Select(f => f.Id)
             .ToListAsync();
-        if (values.Keys.Except(validFieldIds).Any())
+        var submittedFieldIds = values.Keys.Concat(attachments?.Select(a => a.FieldId) ?? Enumerable.Empty<int>());
+        if (submittedFieldIds.Except(validFieldIds).Any())
         {
             return "Die erfassten Werte passen nicht zur aktuellen Formularversion. Bitte den Dialog erneut öffnen.";
         }

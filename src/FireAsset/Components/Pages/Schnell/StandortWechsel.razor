@@ -1,0 +1,234 @@
+@page "/schnell/standortwechsel"
+@attribute [Authorize]
+@inject ArticleService ArticleService
+@inject LocationService LocationService
+@inject AdaptiveDialogService Dialogs
+@inject NotificationService Notifications
+
+<PageTitle>Standortwechsel · Asset Manager</PageTitle>
+
+<div style="max-width: 640px; margin: 0 auto;">
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem" class="rz-mb-2">
+        <RadzenIcon Icon="swap_horiz" Style="font-size:1.8rem; color:var(--rz-primary);" />
+        <RadzenText TextStyle="TextStyle.H4" class="rz-my-0">Standortwechsel</RadzenText>
+    </RadzenStack>
+
+    <RadzenCard class="rz-mb-3">
+        <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-mb-2" Style="font-weight:600;">1. Zielstandort</RadzenText>
+        <label class="fa-label">Standort wählen</label>
+        <RadzenDropDown @bind-Value="_targetLocationId" Data="@_locations" TextProperty="Path" ValueProperty="Id"
+                        AllowFiltering="true" FilterAsYouType="true" AllowClear="true"
+                        FilterOperator="StringFilterOperator.Contains"
+                        FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                        Placeholder="Tippen zum Filtern…" Style="width:100%" />
+
+        <label class="fa-label rz-mt-2">oder Standort-Barcode scannen</label>
+        <input class="fa-input" @bind="_locationBarcode" @bind:event="oninput" @ref="_locationBox"
+               @onkeydown="OnLocationKeyDown" placeholder="Standort-Barcode…" autocomplete="off" />
+        @if (_locationHint is not null)
+        {
+            <div style="color:#dc2626; font-size:0.85rem; margin-top:4px;">@_locationHint</div>
+        }
+    </RadzenCard>
+
+    <RadzenCard>
+        <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-mb-2" Style="font-weight:600;">2. Artikel erfassen</RadzenText>
+        <div style="position:relative;">
+            <label class="fa-label">Artikel-Barcode</label>
+            <input class="fa-input" style="font-size:1.1rem; padding:0.65rem 0.8rem;"
+                   @bind="_articleBarcode" @bind:event="oninput" @ref="_articleBox" @onkeydown="OnArticleKeyDown"
+                   placeholder="scannen oder tippen…" autocomplete="off" />
+            @if (_matches.Count > 0)
+            {
+                <div style="position:absolute; left:0; right:0; z-index:20; background:#fff; border:1px solid #e5e7eb;
+                            border-radius:6px; margin-top:2px; box-shadow:0 4px 14px rgba(0,0,0,0.12); overflow:hidden;">
+                    @foreach (var s in _matches)
+                    {
+                        <div @onclick="() => AddByBarcodeAsync(s.Barcode)"
+                             style="padding:0.55rem 0.8rem; cursor:pointer; border-bottom:1px solid #f1f5f9;">
+                            <div style="font-weight:600;">@s.Barcode</div>
+                            <div style="font-size:0.85rem; color:#6b7280;">@s.Identification</div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+        @if (_articleHint is not null)
+        {
+            <div style="color:#dc2626; font-size:0.85rem; margin-top:4px;">@_articleHint</div>
+        }
+
+        @if (_items.Count > 0)
+        {
+            <div class="rz-mt-3" style="border:1px solid #e5e7eb; border-radius:6px; overflow:hidden;">
+                @foreach (var item in _items)
+                {
+                    <div style="display:flex; align-items:center; gap:0.5rem; padding:0.55rem 0.7rem; border-bottom:1px solid #f1f5f9;">
+                        <div style="flex:1 1 auto; min-width:0;">
+                            <div style="font-weight:600;">@item.Identification</div>
+                            <div style="font-size:0.82rem; color:#6b7280;">
+                                @item.Barcode · aktuell: @item.CurrentLocation
+                                @if (_targetLocationId is int tid && item.LocationId == tid)
+                                {
+                                    <RadzenBadge Text="bereits am Ziel" BadgeStyle="BadgeStyle.Light" class="rz-ml-1" />
+                                }
+                            </div>
+                        </div>
+                        <RadzenButton Icon="close" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
+                                      Click="() => Remove(item)" title="Entfernen" />
+                    </div>
+                }
+            </div>
+        }
+
+        <RadzenButton Text="@($"Alle umlagern ({_items.Count})")" Icon="swap_horiz" ButtonStyle="ButtonStyle.Primary"
+                      Click="ConfirmMoveAsync" Disabled="@(_busy || _items.Count == 0)"
+                      class="rz-mt-3" Style="width:100%; padding:0.7rem;" />
+    </RadzenCard>
+</div>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    private record LocationOption(int Id, string Path, string? Barcode);
+    private sealed record ArticleItem(int Id, string Identification, string? Barcode, int? LocationId, string CurrentLocation);
+
+    private List<LocationOption> _locations = new();
+    private int? _targetLocationId;
+    private string _locationBarcode = string.Empty;
+    private string? _locationHint;
+
+    private string _articleBarcode = string.Empty;
+    private string? _articleHint;
+    private List<ArticleService.BarcodeSuggestion> _suggestions = new();
+    private readonly List<ArticleItem> _items = new();
+
+    private bool _busy;
+    private int? _userId;
+    private ElementReference _locationBox;
+    private ElementReference _articleBox;
+
+    private List<ArticleService.BarcodeSuggestion> _matches =>
+        string.IsNullOrWhiteSpace(_articleBarcode)
+            ? new()
+            : _suggestions
+                .Where(s => s.Barcode.Contains(_articleBarcode.Trim(), StringComparison.OrdinalIgnoreCase)
+                            && !string.Equals(s.Barcode, _articleBarcode.Trim(), StringComparison.OrdinalIgnoreCase))
+                .Take(6).ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState is not null)
+        {
+            var state = await AuthState;
+            var id = state.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (int.TryParse(id, out var parsed)) _userId = parsed;
+        }
+
+        var locations = await LocationService.GetAllAsync();
+        var byId = locations.ToDictionary(l => l.Id);
+        _locations = locations
+            .Select(l => new LocationOption(l.Id, LocationService.BuildPath(l, byId), l.Barcode))
+            .OrderBy(o => o.Path).ToList();
+
+        _suggestions = await ArticleService.GetBarcodeSuggestionsAsync();
+    }
+
+    private async Task OnLocationKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key is "Enter" or "NumpadEnter") await ResolveLocationAsync();
+    }
+
+    private async Task ResolveLocationAsync()
+    {
+        _locationHint = null;
+        var code = _locationBarcode.Trim();
+        if (code.Length == 0) return;
+
+        var match = _locations.FirstOrDefault(l =>
+            !string.IsNullOrEmpty(l.Barcode) && string.Equals(l.Barcode, code, StringComparison.OrdinalIgnoreCase));
+        if (match is null)
+        {
+            _locationHint = $"Kein Standort mit Barcode „{code}“ gefunden.";
+            return;
+        }
+        _targetLocationId = match.Id;
+        _locationBarcode = string.Empty;
+        await _articleBox.FocusAsync();
+    }
+
+    private async Task OnArticleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key is "Enter" or "NumpadEnter") await AddByBarcodeAsync(_articleBarcode);
+    }
+
+    private async Task AddByBarcodeAsync(string barcode)
+    {
+        _articleHint = null;
+        var code = barcode.Trim();
+        if (code.Length == 0) return;
+
+        var article = await ArticleService.FindByBarcodeAsync(code);
+        if (article is null)
+        {
+            _articleHint = $"Kein Artikel mit Barcode „{code}“ gefunden.";
+            await ResetArticleInputAsync();
+            return;
+        }
+        if (_items.Any(i => i.Id == article.Id))
+        {
+            _articleHint = $"„{article.Identification}“ ist bereits in der Liste.";
+            await ResetArticleInputAsync();
+            return;
+        }
+
+        _items.Add(new ArticleItem(article.Id, article.Identification, article.Barcode,
+            article.LocationId, article.Location?.Name ?? "—"));
+        await ResetArticleInputAsync();
+    }
+
+    private void Remove(ArticleItem item) => _items.Remove(item);
+
+    private async Task ConfirmMoveAsync()
+    {
+        if (_busy) return;
+        if (_targetLocationId is not int locationId)
+        {
+            _locationHint = "Bitte zuerst einen Zielstandort wählen.";
+            return;
+        }
+        if (_items.Count == 0) return;
+
+        var target = _locations.First(l => l.Id == locationId);
+        var confirmed = await Dialogs.Confirm(
+            $"{_items.Count} Artikel auf „{target.Path}“ umlagern?", "Standortwechsel bestätigen",
+            new ConfirmOptions { OkButtonText = "Umlagern", CancelButtonText = "Abbrechen" });
+        if (confirmed != true) return;
+
+        _busy = true;
+        try
+        {
+            var ids = _items.Select(i => i.Id).ToList();
+            var (moved, error) = await ArticleService.ChangeLocationForArticlesAsync(ids, locationId, _userId);
+            if (error is not null)
+            {
+                Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Warning, Summary = "Hinweis", Detail = error, Duration = 5000 });
+                return;
+            }
+            Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = "Umgelagert", Detail = $"{moved} Artikel auf „{target.Path}“ gebucht.", Duration = 6000 });
+            _items.Clear();
+            await _articleBox.FocusAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task ResetArticleInputAsync()
+    {
+        _articleBarcode = string.Empty;
+        StateHasChanged();
+        await _articleBox.FocusAsync();
+    }
+}

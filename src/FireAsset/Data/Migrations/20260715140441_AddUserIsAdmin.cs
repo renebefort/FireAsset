@@ -5,15 +5,15 @@
 namespace FireAsset.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class PoolDevice : Migration
+    public partial class AddUserIsAdmin : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<bool>(
-                name: "IsPoolDevice",
-                table: "Articles",
-                type: "INTEGER",
+                name: "IsAdmin",
+                table: "Users",
+                type: "bit",
                 nullable: false,
                 defaultValue: false);
         }
@@ -22,8 +22,8 @@ namespace FireAsset.Data.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "IsPoolDevice",
-                table: "Articles");
+                name: "IsAdmin",
+                table: "Users");
         }
     }
 }

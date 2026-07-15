@@ -5,23 +5,21 @@
 <RadzenStack Gap="0.85rem">
     <div>
         <label class="fa-label">Artikel</label>
-        <select class="fa-input" @bind="_articleId">
-            <option value="">Artikel wählen</option>
-            @foreach (var a in _articles)
-            {
-                <option value="@a.Id">@a.Identification</option>
-            }
-        </select>
+        <RadzenDropDown @bind-Value="_articleId"
+                        Data="@_articles" TextProperty="Identification" ValueProperty="Id"
+                        AllowFiltering="true" FilterAsYouType="true"
+                        FilterOperator="StringFilterOperator.Contains"
+                        FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                        Placeholder="Tippen zum Filtern…" Style="width: 100%" />
     </div>
     <div>
         <label class="fa-label">Formular</label>
-        <select class="fa-input" @bind="_formId">
-            <option value="">Formular wählen</option>
-            @foreach (var f in _forms)
-            {
-                <option value="@f.Id">@f.Name</option>
-            }
-        </select>
+        <RadzenDropDown @bind-Value="_formId"
+                        Data="@_forms" TextProperty="Name" ValueProperty="Id"
+                        AllowFiltering="true" FilterAsYouType="true"
+                        FilterOperator="StringFilterOperator.Contains"
+                        FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                        Placeholder="Formular wählen" Style="width: 100%" />
     </div>
     <div>
         <label class="fa-label">Fälligkeitsdatum</label>

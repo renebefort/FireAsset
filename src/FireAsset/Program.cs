@@ -10,6 +10,12 @@ using Radzen;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Externe, im Betrieb editierbare DB-Konfiguration. Wird nach appsettings.json geladen und
+// überschreibt daher den dortigen ConnectionStrings-Abschnitt. Optional, damit Build/Tooling
+// (z. B. dotnet ef) auch ohne die Datei laufen; zur Laufzeit wird ein fehlender String unten
+// mit einer klaren Meldung abgefangen.
+builder.Configuration.AddJsonFile("dbsettings.json", optional: true, reloadOnChange: true);
+
 // Blazor (Interactive Server).
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
@@ -17,11 +23,16 @@ builder.Services.AddRazorComponents()
 // Radzen UI-Komponenten und Dienste (Dialog, Notification, Tooltip, ContextMenu).
 builder.Services.AddRadzenComponents();
 
-// Datenbank (SQLite).
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? "Data Source=fireasset.db";
+// Datenbank (MS SQL Server). Connection-String kommt aus dbsettings.json (extern, gitignored).
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new InvalidOperationException(
+        "Kein Connection-String konfiguriert. Bitte 'dbsettings.json' anlegen und unter " +
+        "ConnectionStrings:DefaultConnection den SQL-Server-String eintragen (Vorlage: dbsettings.example.json).");
+}
 // DbContextFactory: kurzlebige Kontexte je Operation (empfohlen für Blazor Server).
-builder.Services.AddDbContextFactory<AppDbContext>(options => options.UseSqlite(connectionString));
+builder.Services.AddDbContextFactory<AppDbContext>(options => options.UseSqlServer(connectionString));
 
 // Anwendungsdienste.
 builder.Services.AddScoped<UserService>();
@@ -37,6 +48,13 @@ builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<ExportService>();
 builder.Services.AddSingleton<LoginThrottleService>();
 builder.Services.AddScoped<ChangelogService>();
+
+// Adaptiver Dialog-Wrapper: deaktiviert Draggable/Resizable auf <= 768px (Touch/Tablet).
+builder.Services.AddScoped<AdaptiveDialogService>();
+
+// PDF-Export der Protokolle (PdfSharp/MigraDoc). Nutzt die Windows-Systemschriften (z. B. Arial).
+builder.Services.AddScoped<ProtocolPdfExportService>();
+PdfSharp.Fonts.GlobalFontSettings.UseWindowsFontsUnderWindows = true;
 
 // Authentifizierung: schlanke Cookie-Auth.
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -119,6 +137,27 @@ app.MapGet("/export/inventory.csv", async (ExportService export, int? category, 
 {
     var bytes = await export.BuildInventoryCsvAsync(category, location, active);
     return Results.File(bytes, "text/csv", "inventarliste.csv");
+}).RequireAuthorization();
+
+// Anhang eines Protokoll-Felds (PDF/Bild) inline ausliefern – nur für angemeldete Benutzer.
+// Inline (ohne Dateiname), damit Bilder im <img> gerendert und PDFs im Browser geöffnet werden.
+app.MapGet("/protokolle/{protocolId:int}/anhang/{fieldId:int}", async (int protocolId, int fieldId, ProtocolService protocols) =>
+{
+    var att = await protocols.GetAttachmentAsync(protocolId, fieldId);
+    return att is null ? Results.NotFound() : Results.File(att.Data, att.ContentType);
+}).RequireAuthorization();
+
+// Artikel-Foto (Detailvariante bzw. Grid-Thumbnail) inline ausliefern – nur für angemeldete Benutzer.
+app.MapGet("/artikel/{id:int}/foto", async (int id, ArticleService articles) =>
+{
+    var photo = await articles.GetPhotoAsync(id, thumbnail: false);
+    return photo is null ? Results.NotFound() : Results.File(photo.Data, photo.ContentType);
+}).RequireAuthorization();
+
+app.MapGet("/artikel/{id:int}/foto/thumb", async (int id, ArticleService articles) =>
+{
+    var photo = await articles.GetPhotoAsync(id, thumbnail: true);
+    return photo is null ? Results.NotFound() : Results.File(photo.Data, photo.ContentType);
 }).RequireAuthorization();
 
 app.Run();

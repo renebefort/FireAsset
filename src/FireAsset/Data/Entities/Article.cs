@@ -22,6 +22,9 @@ public class Article
 
     public string? Barcode { get; set; }
 
+    /// <summary>Einkaufspreis in Euro (optional).</summary>
+    public decimal? PurchasePrice { get; set; }
+
     /// <summary>Anschaffungsdatum – Basis für die Berechnung der ersten Fälligkeit.</summary>
     public DateTime AcquisitionDate { get; set; }
 
@@ -74,4 +77,11 @@ public class Article
     public ICollection<InspectionTask> Tasks { get; set; } = new List<InspectionTask>();
 
     public ICollection<InspectionProtocol> Protocols { get; set; } = new List<InspectionProtocol>();
+
+    /// <summary>
+    /// Ansprechpartner der Kategorie als "Vorname Nachname" (leer, wenn keiner hinterlegt).
+    /// Nicht persistiert; setzt voraus, dass Category inkl. ContactUser geladen ist.
+    /// </summary>
+    public string ContactName =>
+        Category?.ContactUser is { } u ? $"{u.FirstName} {u.LastName}".Trim() : string.Empty;
 }

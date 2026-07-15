@@ -20,9 +20,11 @@ public class AppDbContext : DbContext
     public DbSet<FormVersion> FormVersions => Set<FormVersion>();
     public DbSet<FormField> FormFields => Set<FormField>();
     public DbSet<Article> Articles => Set<Article>();
+    public DbSet<ArticlePhoto> ArticlePhotos => Set<ArticlePhoto>();
     public DbSet<InspectionTask> InspectionTasks => Set<InspectionTask>();
     public DbSet<InspectionProtocol> InspectionProtocols => Set<InspectionProtocol>();
     public DbSet<ProtocolFieldValue> ProtocolFieldValues => Set<ProtocolFieldValue>();
+    public DbSet<ProtocolFieldAttachment> ProtocolFieldAttachments => Set<ProtocolFieldAttachment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -32,8 +34,9 @@ public class AppDbContext : DbContext
         {
             e.Property(u => u.FirstName).HasMaxLength(100).IsRequired();
             e.Property(u => u.LastName).HasMaxLength(100).IsRequired();
-            // NOCASE: E-Mail-Vergleiche und der Unique-Index arbeiten case-insensitiv.
-            e.Property(u => u.Email).HasMaxLength(256).IsRequired().UseCollation("NOCASE");
+            // E-Mail-Vergleiche und der Unique-Index arbeiten case-insensitiv – unter SQL Server
+            // deckt das die Standard-Collation (…_CI_AS) bereits ab, daher keine explizite Angabe.
+            e.Property(u => u.Email).HasMaxLength(256).IsRequired();
             e.Property(u => u.PasswordHash).IsRequired();
             e.Property(u => u.Version).IsConcurrencyToken();
             e.HasIndex(u => u.Email).IsUnique();
@@ -47,7 +50,7 @@ public class AppDbContext : DbContext
             e.Property(l => l.Barcode).HasMaxLength(100);
             e.Property(l => l.Icon).HasMaxLength(50);
             e.Property(l => l.Version).IsConcurrencyToken();
-            e.HasIndex(l => l.Barcode).IsUnique().HasFilter("\"Barcode\" IS NOT NULL");
+            e.HasIndex(l => l.Barcode).IsUnique().HasFilter("[Barcode] IS NOT NULL");
             e.HasOne(l => l.ParentLocation)
                 .WithMany(l => l.Children)
                 .HasForeignKey(l => l.ParentLocationId)
@@ -60,6 +63,11 @@ public class AppDbContext : DbContext
             e.Property(c => c.Description).HasMaxLength(1000);
             e.Property(c => c.Version).IsConcurrencyToken();
             e.HasIndex(c => c.Name).IsUnique();
+            // Ansprechpartner: Löschung des Benutzers hebt nur die Zuordnung auf (kein Blockieren).
+            e.HasOne(c => c.ContactUser)
+                .WithMany()
+                .HasForeignKey(c => c.ContactUserId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<InspectionInterval>(e =>
@@ -122,11 +130,12 @@ public class AppDbContext : DbContext
             e.Property(a => a.ManufacturerNumber).HasMaxLength(100);
             e.Property(a => a.InventoryNumber).HasMaxLength(100);
             e.Property(a => a.Barcode).HasMaxLength(100);
+            e.Property(a => a.PurchasePrice).HasPrecision(18, 2);
             e.Property(a => a.LegalBasis).HasMaxLength(300);
             e.Property(a => a.Description).HasMaxLength(2000);
             e.Property(a => a.CurrentInspectionStatus).HasConversion<int>();
             e.Property(a => a.Version).IsConcurrencyToken();
-            e.HasIndex(a => a.Barcode).IsUnique().HasFilter("\"Barcode\" IS NOT NULL");
+            e.HasIndex(a => a.Barcode).IsUnique().HasFilter("[Barcode] IS NOT NULL");
             e.HasIndex(a => a.InventoryNumber);
             e.HasOne(a => a.Category)
                 .WithMany(c => c.Articles)
@@ -136,14 +145,19 @@ public class AppDbContext : DbContext
                 .WithMany(l => l.Articles)
                 .HasForeignKey(a => a.LocationId)
                 .OnDelete(DeleteBehavior.SetNull);
+            // ClientSetNull statt SetNull: Article hat zwei FKs auf Users (Created/Modified);
+            // zwei DB-seitige ON DELETE SET NULL-Pfade zur selben Tabelle lehnt SQL Server ab
+            // ("multiple cascade paths"). Benutzer werden ohnehin nur soft-deleted (IsActive),
+            // daher ist das Nullen dieser Audit-Referenzen auf Client-Ebene ausreichend.
             e.HasOne(a => a.CreatedByUser)
                 .WithMany()
                 .HasForeignKey(a => a.CreatedByUserId)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.ClientSetNull);
             e.HasOne(a => a.ModifiedByUser)
                 .WithMany()
                 .HasForeignKey(a => a.ModifiedByUserId)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.ClientSetNull);
+            e.Ignore(a => a.ContactName);
         });
 
         modelBuilder.Entity<InspectionTask>(e =>
@@ -201,6 +215,36 @@ public class AppDbContext : DbContext
             e.HasOne(v => v.FormField)
                 .WithMany(f => f.Values)
                 .HasForeignKey(v => v.FormFieldId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ArticlePhoto>(e =>
+        {
+            e.Property(p => p.ContentType).HasMaxLength(150).IsRequired();
+            e.Property(p => p.Data).IsRequired();
+            e.Property(p => p.Thumbnail).IsRequired();
+            // Ein Foto je Artikel; wird beim Löschen des Artikels mitgelöscht.
+            e.HasIndex(p => p.ArticleId).IsUnique();
+            e.HasOne<Article>()
+                .WithMany()
+                .HasForeignKey(p => p.ArticleId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ProtocolFieldAttachment>(e =>
+        {
+            e.Property(a => a.FileName).HasMaxLength(260).IsRequired();
+            e.Property(a => a.ContentType).HasMaxLength(150).IsRequired();
+            e.Property(a => a.Data).IsRequired();
+            // Pro Protokoll und Feld genau eine Datei (verhindert Doppel-Uploads).
+            e.HasIndex(a => new { a.ProtocolId, a.FormFieldId }).IsUnique();
+            e.HasOne(a => a.Protocol)
+                .WithMany(p => p.Attachments)
+                .HasForeignKey(a => a.ProtocolId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(a => a.FormField)
+                .WithMany()
+                .HasForeignKey(a => a.FormFieldId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }

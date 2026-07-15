@@ -22,22 +22,65 @@ else
         </RadzenRow>
 
         <RadzenText TextStyle="TextStyle.H6" class="rz-mb-0">Erfasste Werte</RadzenText>
-        <RadzenDataGrid Data="@_protocol.FieldValues.OrderBy(v => v.FormField.SortOrder)" TItem="Data.Entities.ProtocolFieldValue" AllowSorting="false">
-            <Columns>
-                <RadzenDataGridColumn TItem="Data.Entities.ProtocolFieldValue" Title="Feld">
-                    <Template Context="v">@v.FormField.Label</Template>
-                </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="Data.Entities.ProtocolFieldValue" Title="Typ" Width="200px">
-                    <Template Context="v">@FieldTypeInfo.Label(v.FormField.FieldType)</Template>
-                </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="Data.Entities.ProtocolFieldValue" Title="Wert">
-                    <Template Context="v">
-                        @Format(v.FormField.FieldType, v.Value)
-                        @if (!string.IsNullOrEmpty(v.FormField.Unit)) { <span> @v.FormField.Unit</span> }
-                    </Template>
-                </RadzenDataGridColumn>
-            </Columns>
-        </RadzenDataGrid>
+
+        <RadzenStack Gap="0.6rem">
+            @foreach (var field in _protocol.FormVersion.Fields.OrderBy(f => f.SortOrder))
+            {
+                @if (field.FieldType == FieldType.Ueberschrift)
+                {
+                    <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-mt-1 rz-mb-0"
+                                Style="border-bottom:1px solid #e5e7eb; padding-bottom:0.2rem; font-weight:600;">@field.Label</RadzenText>
+                }
+                else if (field.FieldType == FieldType.Hinweistext)
+                {
+                    <RadzenText TextStyle="TextStyle.Body2" class="rz-my-0" Style="color:#4b5563;">@field.Label</RadzenText>
+                }
+                else if (field.FieldType == FieldType.Attachment)
+                {
+                    <div>
+                        <div style="font-weight:600; font-size:0.9rem;">@field.Label</div>
+                        @if (_attachments.TryGetValue(field.Id, out var att))
+                        {
+                            var url = $"/protokolle/{_protocol.Id}/anhang/{field.Id}";
+                            @if (att.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+                            {
+                                <a href="@url" target="_blank" rel="noopener">
+                                    <img src="@url" alt="@att.FileName" style="max-width:280px; max-height:280px; border:1px solid #e5e7eb; border-radius:6px; margin-top:4px;" />
+                                </a>
+                            }
+                            else
+                            {
+                                <a href="@url" target="_blank" rel="noopener" style="display:inline-flex; align-items:center; gap:0.35rem; margin-top:4px;">
+                                    <RadzenIcon Icon="picture_as_pdf" Style="font-size:1.2rem; color:#b91c1c;" />
+                                    <span>@att.FileName</span>
+                                </a>
+                            }
+                        }
+                        else
+                        {
+                            <span style="color:#9ca3af;">— keine Datei —</span>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div>
+                        <div style="font-weight:600; font-size:0.9rem;">
+                            @field.Label
+                            @if (!string.IsNullOrEmpty(field.Unit)) { <span style="font-weight:400"> (@field.Unit)</span> }
+                        </div>
+                        @if (field.FieldType == FieldType.Url && !string.IsNullOrWhiteSpace(Value(field.Id)))
+                        {
+                            <a href="@Value(field.Id)" target="_blank" rel="noopener">@Value(field.Id)</a>
+                        }
+                        else
+                        {
+                            <span>@Format(field.FieldType, Value(field.Id))</span>
+                        }
+                    </div>
+                }
+            }
+        </RadzenStack>
 
         @if (!string.IsNullOrWhiteSpace(_protocol.Notes))
         {
@@ -57,11 +100,21 @@ else
     [Parameter] public int ProtocolId { get; set; }
 
     private InspectionProtocol? _protocol;
+    private Dictionary<int, string?> _values = new();
+    private Dictionary<int, ProtocolService.AttachmentMeta> _attachments = new();
 
     protected override async Task OnInitializedAsync()
     {
         _protocol = await ProtocolService.GetDetailAsync(ProtocolId);
+        if (_protocol is not null)
+        {
+            _values = _protocol.FieldValues.ToDictionary(v => v.FormFieldId, v => v.Value);
+            var metas = await ProtocolService.GetAttachmentMetasAsync(ProtocolId);
+            _attachments = metas.ToDictionary(a => a.FieldId);
+        }
     }
+
+    private string? Value(int fieldId) => _values.TryGetValue(fieldId, out var v) ? v : null;
 
     /// <summary>Snapshot-Name bevorzugt: bleibt auch nach Löschung des Benutzers erhalten.</summary>
     private string InspectorName() =>

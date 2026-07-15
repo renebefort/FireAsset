@@ -22,23 +22,26 @@
     <RadzenRow Gap="0.75rem">
         <RadzenColumn Size="12" SizeMd="6">
             <label class="fa-label">Kategorie</label>
-            <select class="fa-input" @bind="_article.CategoryId">
-                <option value="0">Kategorie wählen</option>
-                @foreach (var c in _categories)
-                {
-                    <option value="@c.Id">@c.Name</option>
-                }
-            </select>
+            <RadzenDropDown @bind-Value="_article.CategoryId"
+                            Data="@_categories" TextProperty="Name" ValueProperty="Id"
+                            AllowFiltering="true"
+                            FilterAsYouType="true"
+                            FilterOperator="StringFilterOperator.Contains"
+                            FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                            Placeholder="Tippen zum Filtern…"
+                            Style="width: 100%" />
         </RadzenColumn>
         <RadzenColumn Size="12" SizeMd="6">
             <label class="fa-label">Standort</label>
-            <select class="fa-input" @bind="_article.LocationId">
-                <option value="">(kein Standort)</option>
-                @foreach (var o in _locationOptions)
-                {
-                    <option value="@o.Id">@o.Path</option>
-                }
-            </select>
+            <RadzenDropDown @bind-Value="_article.LocationId"
+                            Data="@_locationOptions" TextProperty="Path" ValueProperty="Id"
+                            AllowFiltering="true"
+                            FilterAsYouType="true"
+                            AllowClear="true"
+                            FilterOperator="StringFilterOperator.Contains"
+                            FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                            Placeholder="(kein Standort)"
+                            Style="width: 100%" />
         </RadzenColumn>
     </RadzenRow>
 
@@ -58,8 +61,51 @@
         <RadzenColumn Size="6" SizeMd="3"><label class="fa-label">Ende-Datum</label><input type="date" class="fa-input" @bind="_endDate" /></RadzenColumn>
     </RadzenRow>
 
-    <div><label class="fa-label">Rechtsgrundlage</label><input class="fa-input" @bind="_article.LegalBasis" /></div>
-    <div><label class="fa-label">Beschreibung</label><textarea class="fa-input fa-textarea" rows="2" @bind="_article.Description"></textarea></div>
+    <RadzenRow Gap="0.75rem">
+        <RadzenColumn Size="6" SizeMd="3">
+            <label class="fa-label">Einkaufspreis (€)</label>
+            <input type="number" step="0.01" min="0" class="fa-input" @bind="_article.PurchasePrice" />
+        </RadzenColumn>
+        <RadzenColumn Size="6" SizeMd="5">
+            <label class="fa-label">Rechtsgrundlage</label>
+            <input class="fa-input" @bind="_article.LegalBasis" />
+        </RadzenColumn>
+    </RadzenRow>
+
+    <RadzenRow Gap="0.75rem">
+        <RadzenColumn Size="12" SizeMd="8">
+            <label class="fa-label">Beschreibung</label>
+            <textarea class="fa-input fa-textarea" rows="5" @bind="_article.Description"></textarea>
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMd="4">
+            <label class="fa-label">Foto</label>
+            <div style="display:flex; gap:0.75rem; align-items:flex-start;">
+                @if (_photoPreviewDataUrl is not null)
+                {
+                    <img src="@_photoPreviewDataUrl" alt="Artikel-Foto"
+                         style="width:96px; height:96px; object-fit:cover; border:1px solid #e5e7eb; border-radius:6px; flex:0 0 auto;" />
+                }
+                else
+                {
+                    <div style="width:96px; height:96px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:6px; color:#9ca3af;">
+                        <RadzenIcon Icon="image" Style="font-size:2rem;" />
+                    </div>
+                }
+                <div style="display:flex; flex-direction:column; gap:0.4rem; min-width:0;">
+                    <InputFile OnChange="OnPhotoSelected" accept="image/*" />
+                    <RadzenText TextStyle="TextStyle.Caption" class="rz-my-0">Wird auf max. 1024 px verkleinert.</RadzenText>
+                    @if (_photoPreviewDataUrl is not null)
+                    {
+                        <RadzenButton Text="Foto entfernen" Icon="delete" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="RemovePhoto" />
+                    }
+                    @if (!string.IsNullOrEmpty(_photoError))
+                    {
+                        <span style="color:#dc2626; font-size:0.85rem;">@_photoError</span>
+                    }
+                </div>
+            </div>
+        </RadzenColumn>
+    </RadzenRow>
 
     <RadzenText TextStyle="TextStyle.Caption">
         Beim Anlegen werden automatisch Aufgaben für alle aktiven Intervalle der gewählten Kategorie erzeugt
@@ -96,6 +142,15 @@
     private DateTime? _decommissionDate;
     private DateTime? _endDate;
 
+    // Foto: bereits verkleinertes Bild wird bis zum Speichern zwischengehalten.
+    private const long MaxPhotoUploadBytes = 20L * 1024 * 1024;
+    private ImageProcessing.ProcessedImage? _photoProcessed;
+    private string? _photoPreviewDataUrl;
+    private string? _photoError;
+    private bool _removePhoto;
+    // Kopiermodus: Artikel-Id, dessen Foto beim Speichern übernommen werden soll.
+    private int? _copyPhotoFromArticleId;
+
     protected override async Task OnInitializedAsync()
     {
         _categories = await ArticleService.GetActiveCategoriesAsync();
@@ -121,6 +176,57 @@
         _productionDate = _article.ProductionDate;
         _decommissionDate = _article.DecommissionDate;
         _endDate = _article.EndDate;
+
+        // Vorhandenes Foto als Vorschau laden – beim Bearbeiten vom Artikel selbst, beim Kopieren
+        // von der Vorlage (wird dann beim Speichern auf den neuen Artikel übernommen).
+        var photoSourceId = _article.Id != 0 ? _article.Id : CopyFromArticleId;
+        if (photoSourceId is int pid)
+        {
+            var thumb = await ArticleService.GetPhotoAsync(pid, thumbnail: true);
+            if (thumb is not null)
+            {
+                _photoPreviewDataUrl = $"data:{thumb.ContentType};base64,{Convert.ToBase64String(thumb.Data)}";
+                if (_article.Id == 0) _copyPhotoFromArticleId = pid;
+            }
+        }
+    }
+
+    private async Task OnPhotoSelected(InputFileChangeEventArgs e)
+    {
+        _photoError = null;
+        var file = e.File;
+        if (file.Size > MaxPhotoUploadBytes)
+        {
+            _photoError = "Das Bild ist zu groß (max. 20 MB).";
+            return;
+        }
+        try
+        {
+            using var ms = new MemoryStream();
+            await file.OpenReadStream(MaxPhotoUploadBytes).CopyToAsync(ms);
+            var processed = ImageProcessing.TryProcess(ms.ToArray());
+            if (processed is null)
+            {
+                _photoError = "Die Datei ist kein gültiges Bild.";
+                return;
+            }
+            _photoProcessed = processed;
+            _removePhoto = false;
+            _photoPreviewDataUrl = $"data:image/jpeg;base64,{Convert.ToBase64String(processed.Thumbnail)}";
+        }
+        catch (Exception)
+        {
+            _photoError = "Das Bild konnte nicht gelesen werden.";
+        }
+    }
+
+    private void RemovePhoto()
+    {
+        _photoProcessed = null;
+        _photoPreviewDataUrl = null;
+        _photoError = null;
+        _removePhoto = true;
+        _copyPhotoFromArticleId = null; // beim Kopieren das Vorlagen-Foto nicht übernehmen
     }
 
     private async Task Save()
@@ -158,6 +264,21 @@
                 Notify(error);
                 return;
             }
+            // Foto nach erfolgreicher Speicherung übernehmen (Artikel-Id ist jetzt gesetzt).
+            if (_photoProcessed is not null)
+            {
+                await ArticleService.SavePhotoAsync(_article.Id, _photoProcessed);
+            }
+            else if (_removePhoto)
+            {
+                await ArticleService.DeletePhotoAsync(_article.Id);
+            }
+            else if (_copyPhotoFromArticleId is int sourceId)
+            {
+                // Kopiermodus: Foto der Vorlage auf den neuen Artikel übernehmen.
+                await ArticleService.CopyPhotoAsync(sourceId, _article.Id);
+            }
+
             foreach (var msg in messages)
             {
                 Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Info, Summary = "Aufgabenanlage", Detail = msg, Duration = 8000 });
@@ -180,6 +301,7 @@
         Manufacturer = source.Manufacturer,
         Type = source.Type,
         ManufacturerNumber = source.ManufacturerNumber,
+        PurchasePrice = source.PurchasePrice,
         AcquisitionDate = source.AcquisitionDate,
         ProductionDate = source.ProductionDate,
         DecommissionDate = source.DecommissionDate,

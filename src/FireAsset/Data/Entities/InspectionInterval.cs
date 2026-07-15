@@ -13,8 +13,14 @@ public class InspectionInterval
 
     public string Name { get; set; } = string.Empty;
 
-    /// <summary>Rhythmus in Monaten.</summary>
+    /// <summary>Rhythmus in Monaten. Bei einer Eingangskontrolle ohne Bedeutung (0).</summary>
     public int IntervalMonths { get; set; }
+
+    /// <summary>
+    /// Eingangskontrolle: Alternative zum Rhythmus. Erzeugt bei der Artikelanlage genau einmal
+    /// eine Aufgabe mit dem verlinkten Formular (Fälligkeit = Anlagedatum), ohne Folgeaufgaben.
+    /// </summary>
+    public bool IsEntryControl { get; set; }
 
     /// <summary>
     /// Referenziertes Prüfformular. Optional, damit Intervalle vor der Formularpflege

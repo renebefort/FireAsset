@@ -2,7 +2,7 @@
 @attribute [Authorize]
 @inject FormService FormService
 @inject NotificationService Notifications
-@inject DialogService Dialogs
+@inject AdaptiveDialogService Dialogs
 
 <PageTitle>Formulare · Asset Manager</PageTitle>
 
@@ -12,7 +12,7 @@
 </RadzenStack>
 
 <RadzenDataGrid Data="@_forms" TItem="FormService.FormSummary" AllowSorting="true"
-                AllowFiltering="true" FilterMode="FilterMode.Advanced" GridLines="DataGridGridLines.Both" AllowColumnResize="true" AllowColumnPicking="true"
+                AllowFiltering="true" FilterMode="FilterMode.CheckBoxList" GridLines="DataGridGridLines.Both" AllowColumnResize="true" AllowColumnPicking="true"
                 AllowPaging="true" PageSize="20" PageSizeOptions="@(new int[] { 10, 20, 50, 100 })" ShowPagingSummary="true">
     <Columns>
         <RadzenDataGridColumn TItem="FormService.FormSummary" Property="Name" Title="Name" />
@@ -26,9 +26,10 @@
                 <RadzenBadge Text="@(f.IsActive ? "aktiv" : "inaktiv")" BadgeStyle="@(f.IsActive ? BadgeStyle.Success : BadgeStyle.Light)" />
             </Template>
         </RadzenDataGridColumn>
-        <RadzenDataGridColumn TItem="FormService.FormSummary" Context="f" Title="Aktionen" Sortable="false" Filterable="false" Pickable="false" Width="200px" TextAlign="TextAlign.Center">
+        <RadzenDataGridColumn TItem="FormService.FormSummary" Context="f" Title="Aktionen" Sortable="false" Filterable="false" Pickable="false" Width="240px" TextAlign="TextAlign.Center">
             <Template Context="f">
                 <RadzenButton Icon="edit" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="() => OpenEditor(f.Id)" title="Bearbeiten" />
+                <RadzenButton Icon="content_copy" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="() => OpenCopy(f)" title="Kopieren" />
                 <RadzenButton Icon="history" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="() => OpenVersions(f)" title="Versionen" />
                 <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small" Click="() => Delete(f)" title="Löschen" />
             </Template>
@@ -67,6 +68,20 @@
         {
             await Reload();
             Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = "Gespeichert", Detail = "Formular gespeichert.", Duration = 3000 });
+        }
+    }
+
+    private async Task OpenCopy(FormService.FormSummary f)
+    {
+        var result = await Dialogs.OpenAsync<FormEditorDialog>(
+            $"Formular kopieren: {f.Name}",
+            new Dictionary<string, object?> { ["CopyFromFormId"] = f.Id, ["UserId"] = _userId },
+            new DialogOptions { Width = "900px", Height = "80%", Resizable = true, Draggable = true });
+
+        if (result is true)
+        {
+            await Reload();
+            Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = "Kopiert", Detail = "Formular als Kopie angelegt.", Duration = 3000 });
         }
     }
 

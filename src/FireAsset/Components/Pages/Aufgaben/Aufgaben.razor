@@ -2,7 +2,7 @@
 @attribute [Authorize]
 @inject TaskService TaskService
 @inject NotificationService Notifications
-@inject DialogService Dialogs
+@inject AdaptiveDialogService Dialogs
 
 <PageTitle>Aufgaben · Asset Manager</PageTitle>
 
@@ -18,7 +18,7 @@
 </RadzenStack>
 
 <RadzenDataGrid Data="@_tasks" TItem="TaskService.TaskListItem" AllowSorting="true"
-                AllowFiltering="true" FilterMode="FilterMode.Advanced" GridLines="DataGridGridLines.Both" AllowColumnResize="true"
+                AllowFiltering="true" FilterMode="FilterMode.CheckBoxList" GridLines="DataGridGridLines.Both" AllowColumnResize="true"
                 AllowColumnReorder="true" AllowColumnPicking="true" AllowPaging="true" PageSize="25"
                 PageSizeOptions="@(new int[] { 10, 25, 50, 100 })" ShowPagingSummary="true"
                 RowDoubleClick="@(args => Inspect(args.Data!))">
@@ -38,6 +38,7 @@
         <RadzenDataGridColumn TItem="TaskService.TaskListItem" Property="CategoryName" Title="Kategorie" Width="140px" />
         <RadzenDataGridColumn TItem="TaskService.TaskListItem" Property="LocationName" Title="Standort" Width="140px" />
         <RadzenDataGridColumn TItem="TaskService.TaskListItem" Property="LocationBarcode" Title="Standort-Barcode" Width="140px" />
+        <RadzenDataGridColumn TItem="TaskService.TaskListItem" Property="ContactName" Title="Ansprechpartner" Width="150px" />
         <RadzenDataGridColumn TItem="TaskService.TaskListItem" Property="IntervalName" Title="Intervall" Width="150px" />
         <RadzenDataGridColumn TItem="TaskService.TaskListItem" Property="FormName" Title="Formular" Width="150px">
             <Template Context="item">
@@ -173,7 +174,7 @@
                 ["Unplanned"] = false,
                 ["UserId"] = _userId,
             },
-            new DialogOptions { Width = "700px", Height = "85%", Resizable = true, Draggable = true });
+            new DialogOptions { Width = "860px", Height = "85%", Resizable = true, Draggable = true });
     }
 
     private async Task ProcessBatch()
