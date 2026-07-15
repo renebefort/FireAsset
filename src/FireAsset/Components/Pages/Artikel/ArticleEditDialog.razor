@@ -148,6 +148,8 @@
     private string? _photoPreviewDataUrl;
     private string? _photoError;
     private bool _removePhoto;
+    // Kopiermodus: Artikel-Id, dessen Foto beim Speichern übernommen werden soll.
+    private int? _copyPhotoFromArticleId;
 
     protected override async Task OnInitializedAsync()
     {
@@ -175,13 +177,16 @@
         _decommissionDate = _article.DecommissionDate;
         _endDate = _article.EndDate;
 
-        // Vorhandenes Foto (nur beim Bearbeiten) als Vorschau laden.
-        if (_article.Id != 0)
+        // Vorhandenes Foto als Vorschau laden – beim Bearbeiten vom Artikel selbst, beim Kopieren
+        // von der Vorlage (wird dann beim Speichern auf den neuen Artikel übernommen).
+        var photoSourceId = _article.Id != 0 ? _article.Id : CopyFromArticleId;
+        if (photoSourceId is int pid)
         {
-            var thumb = await ArticleService.GetPhotoAsync(_article.Id, thumbnail: true);
+            var thumb = await ArticleService.GetPhotoAsync(pid, thumbnail: true);
             if (thumb is not null)
             {
                 _photoPreviewDataUrl = $"data:{thumb.ContentType};base64,{Convert.ToBase64String(thumb.Data)}";
+                if (_article.Id == 0) _copyPhotoFromArticleId = pid;
             }
         }
     }
@@ -221,6 +226,7 @@
         _photoPreviewDataUrl = null;
         _photoError = null;
         _removePhoto = true;
+        _copyPhotoFromArticleId = null; // beim Kopieren das Vorlagen-Foto nicht übernehmen
     }
 
     private async Task Save()
@@ -266,6 +272,11 @@
             else if (_removePhoto)
             {
                 await ArticleService.DeletePhotoAsync(_article.Id);
+            }
+            else if (_copyPhotoFromArticleId is int sourceId)
+            {
+                // Kopiermodus: Foto der Vorlage auf den neuen Artikel übernehmen.
+                await ArticleService.CopyPhotoAsync(sourceId, _article.Id);
             }
 
             foreach (var msg in messages)

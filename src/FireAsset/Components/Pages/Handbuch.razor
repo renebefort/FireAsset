@@ -56,9 +56,17 @@
 <RadzenCard class="rz-mb-3">
     <RadzenText TextStyle="TextStyle.H6">5. Formulare &amp; Versionierung</RadzenText>
     <RadzenText TextStyle="TextStyle.Body2">
-        Ein Formular besteht aus frei definierbaren Feldern. Je Feld wählst Du einen <strong>Typ</strong>
-        (Ja/Nein, Text, Ganzzahl, Gleitkommazahl, mehrzeiliger Text, Datum). Bei numerischen Feldern können
-        Einheit und Referenzwert angegeben werden. Die Reihenfolge der Felder änderst Du mit den Pfeil-Buttons.
+        Ein Formular besteht aus frei definierbaren Feldern. Je Feld wählst Du einen <strong>Typ</strong>:
+        Ja/Nein, Text (einzeilig/mehrzeilig), Ganzzahl, Gleitkommazahl, Datum sowie
+        <strong>URL/Link</strong> und <strong>Anhang (PDF/Bild)</strong> für Eingaben, außerdem die reinen
+        Anzeige-Typen <strong>Hinweistext</strong> und <strong>Überschrift</strong> zur Gliederung (ohne Eingabe).
+        Bei numerischen Feldern können Einheit und Referenzwert angegeben werden. Die Reihenfolge der Felder
+        änderst Du mit den Pfeil-Buttons.
+    </RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-2">
+        <strong>Formular kopieren:</strong> Über die Aktion <em>Kopieren</em> legst Du ein neues Formular auf
+        Basis eines bestehenden an (Name „Kopie von …", alle Felder der aktuellen Version übernommen) – ideal
+        für ähnliche Formulare, die nur leicht angepasst werden.
     </RadzenText>
     <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-2">
         <strong>Wichtig – Versionierung:</strong> Jede Änderung an den Feldern erzeugt beim Speichern eine neue
@@ -80,6 +88,16 @@
         <strong>Rhythmus in Monaten</strong> und ein zugeordnetes <strong>Formular</strong>. Nur <em>aktive</em>
         Intervalle mit hinterlegtem Formular erzeugen Aufgaben.
     </RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-2">
+        <strong>Ansprechpartner:</strong> Optional kannst Du der Kategorie einen Benutzer als Ansprechpartner
+        zuordnen. Ist einer hinterlegt, erscheint er als Spalte (Vorname Nachname) im Artikelstamm, in den
+        Aufgaben und im Dashboard.
+    </RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-2">
+        <strong>Eingangskontrolle:</strong> Statt eines Rhythmus kann ein Intervall als <em>Eingangskontrolle</em>
+        markiert werden. Dann wird bei der Anlage eines Artikels dieser Kategorie <strong>genau einmalig</strong>
+        eine Aufgabe mit dem hinterlegten Formular erzeugt (Fälligkeit = Anlagedatum), ohne Folgeaufgaben.
+    </RadzenText>
 </RadzenCard>
 
 <RadzenCard class="rz-mb-3">
@@ -87,7 +105,8 @@
     <RadzenText TextStyle="TextStyle.Body2">
         Unter <em>Artikelstamm</em> legst Du Geräte an. Pflicht sind Identifikation/Name und Kategorie;
         das <strong>Anschaffungsdatum</strong> ist die Basis für die erste Fälligkeit. Optional: Hersteller,
-        Typ, Serien-/Inventarnummer, Barcode, Standort und ein <strong>Ende-Datum</strong>.
+        Typ, Serien-/Inventarnummer, Barcode, Standort, <strong>Einkaufspreis</strong>, ein <strong>Ende-Datum</strong>
+        sowie ein <strong>Foto</strong> (wird beim Hochladen verkleinert und als Thumbnail in der Artikelliste angezeigt).
     </RadzenText>
     <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-2">
         Beim Speichern erzeugt das System automatisch für jedes aktive Intervall der Kategorie eine Aufgabe
@@ -99,9 +118,10 @@
     </RadzenText>
     <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-2">
         <strong>Artikel kopieren:</strong> Über die Aktion <em>Kopieren</em> legst Du ein weiteres, gleichartiges
-        Gerät an. Alle Stammdaten werden übernommen; gerätespezifische Kennungen (Barcode, Serien- und
-        Inventarnummer) bleiben leer und der Name erhält den Zusatz „(Kopie)". Ein Kategoriewechsel eines
-        bestehenden Artikels ersetzt dessen offene automatische Aufgaben durch die der neuen Kategorie.
+        Gerät an. Alle Stammdaten inkl. <strong>Foto</strong> werden übernommen; gerätespezifische Kennungen
+        (Barcode, Serien- und Inventarnummer) bleiben leer und der Name erhält den Zusatz „(Kopie)". Ein
+        Kategoriewechsel eines bestehenden Artikels ersetzt dessen offene automatische Aufgaben durch die der
+        neuen Kategorie.
     </RadzenText>
 </RadzenCard>
 
@@ -169,7 +189,30 @@
 </RadzenCard>
 
 <RadzenCard class="rz-mb-3">
-    <RadzenText TextStyle="TextStyle.H6">9. Ungeplante Prüfung</RadzenText>
+    <RadzenText TextStyle="TextStyle.H6">9. Schnellaktionen (für Smartphone &amp; Scanner)</RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2">
+        Die Menügruppe <em>Schnellaktionen</em> (oben im Menü) bündelt stark reduzierte, für das Smartphone
+        optimierte Abläufe. Beide Funktionen sind auf einen Barcode-Scanner ausgelegt: Ein Hardware-/Bluetooth-Scanner
+        verhält sich wie eine Tastatur – der gescannte Barcode landet im fokussierten Feld und wird mit Enter
+        bestätigt. Bei manueller Eingabe helfen <strong>Live-Vorschläge</strong> (Tippen filtert passende Barcodes).
+    </RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-2">
+        <strong>Prüfung starten:</strong> Barcode eines Geräts scannen oder eingeben. Das System sucht die offenen
+        Aufgaben des Artikels und öffnet automatisch die Prüfung mit der <strong>frühesten Fälligkeit</strong> –
+        scannen und sofort prüfen. Nach dem Speichern springt der Fokus zurück ins Barcode-Feld, sodass Du direkt
+        das nächste Gerät scannen kannst. Ist keine Prüfung offen oder der Barcode unbekannt, erscheint ein Hinweis.
+    </RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-2">
+        <strong>Standortwechsel:</strong> Zum Umlagern eines oder mehrerer Geräte. Zuerst den
+        <strong>Zielstandort</strong> wählen (Suchfeld) oder dessen Barcode scannen. Danach nacheinander die Artikel
+        scannen/eingeben – die Liste wächst automatisch, Einträge lassen sich einzeln entfernen, bereits erfasste
+        oder unbekannte Barcodes werden abgefangen. Mit <strong>„Alle umlagern"</strong> werden nach einer Rückfrage
+        alle Geräte der Liste auf den Zielstandort gebucht. Ein USB-/Bluetooth-Scanner verhält sich wie eine Tastatur.
+    </RadzenText>
+</RadzenCard>
+
+<RadzenCard class="rz-mb-3">
+    <RadzenText TextStyle="TextStyle.H6">10. Ungeplante Prüfung</RadzenText>
     <RadzenText TextStyle="TextStyle.Body2">
         Für spontane Kontrollen (z. B. „Sichtprüfung nach dem Einsatz") nutzt Du im <em>Artikelstamm</em>
         die Aktion <strong>Ungeplante Prüfung</strong>. Du wählst ein Formular, erfasst die Werte und
@@ -178,21 +221,25 @@
 </RadzenCard>
 
 <RadzenCard class="rz-mb-3">
-    <RadzenText TextStyle="TextStyle.H6">10. Standortwechsel per Barcode</RadzenText>
-    <RadzenText TextStyle="TextStyle.Body2">
-        Über <em>Artikelstamm → Standortwechsel</em> lagerst Du ein Gerät schnell um: den Barcode des Artikels
-        scannen (oder eingeben) und mit Enter bestätigen, danach den Barcode des Zielstandorts scannen und
-        auf <strong>Umlagern</strong>. Ein USB-Scanner verhält sich wie eine Tastatur. Das Barcode-Suchfeld in
-        der Artikelliste öffnet einen Artikel direkt anhand seines Barcodes.
-    </RadzenText>
-</RadzenCard>
-
-<RadzenCard class="rz-mb-3">
     <RadzenText TextStyle="TextStyle.H6">11. Protokolle</RadzenText>
     <RadzenText TextStyle="TextStyle.Body2">
         Unter <em>Protokolle</em> findest Du die vollständige Prüfhistorie. Über <strong>Detail</strong>
-        siehst Du alle erfassten Werte einer Prüfung – jeweils in der exakten Formularversion von damals.
-        Protokolle sind nur lesbar und werden nicht verändert.
+        siehst Du alle erfassten Werte einer Prüfung – jeweils in der exakten Formularversion von damals,
+        inkl. URLs (als Link) und Bild-Anhängen (als Vorschau). Protokolle sind grundsätzlich nur lesbar.
+    </RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-2">
+        <strong>PDF-Export (Massenaktion):</strong> Filtere die Liste nach Bedarf (z. B. Kategorie, Ergebnis,
+        Zeitraum) und klicke oben rechts auf <strong>„Gefilterte als PDF exportieren"</strong>. Es wird eine
+        <strong>ZIP-Datei</strong> erzeugt – ein PDF je Protokoll. Im PDF-Kopf stehen alle ausgefüllten
+        Artikel-Attribute, darunter die erfassten Prüfwerte und das Ergebnis. Die Ablage folgt der
+        <strong>Kategorie</strong>: Jeder Punkt im Kategorienamen wird zu einem Unterverzeichnis
+        (z. B. „Test.Atemschutz" → <em>Test/Atemschutz/</em>). Der Dateiname ist
+        <em>&lt;Prüfdatum JJJJMMTT&gt;_&lt;Barcode&gt;.pdf</em> (ohne Barcode wird die Identifikation verwendet).
+    </RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-2">
+        <strong>Protokoll löschen:</strong> Benutzer mit dem Recht <strong>Administrator</strong> (siehe
+        <em>Stammdaten → Benutzer</em>) können einzelne Protokolle über das Lösch-Symbol entfernen –
+        vor allem für Testdaten gedacht.
     </RadzenText>
 </RadzenCard>
 
@@ -203,14 +250,16 @@
         Prüfstatus-Verteilung und die nächsten fälligen Aufgaben – farblich markiert wie in der
         Aufgabenübersicht (rot = überfällig, orange = diesen Monat fällig). Inaktive Artikel zählen nicht in
         die Kennzahlen. Unter <em>Export</em> lädst Du die Inventarliste als CSV-Datei herunter – optional
-        gefiltert nach Kategorie, Standort und Status.
+        gefiltert nach Kategorie, Standort und Status; enthalten sind u. a. auch Einkaufspreis, Produktions-
+        und Ausmusterungsdatum.
     </RadzenText>
 </RadzenCard>
 
 <RadzenCard class="rz-mb-3">
     <RadzenText TextStyle="TextStyle.H6">13. Tipps zu den Übersichten</RadzenText>
     <ul>
-        <li><strong>Filtern:</strong> Über das Trichter-Symbol im Spaltenkopf filterst Du je Spalte.</li>
+        <li><strong>Filtern (Excel-artig):</strong> Über das Filter-Symbol im Spaltenkopf öffnest Du eine
+            Auswahlliste der vorkommenden Werte und hakst die gewünschten an – wie der Spaltenfilter in Excel.</li>
         <li><strong>Sortieren:</strong> Klick auf den Spaltenkopf sortiert; erneuter Klick kehrt die Richtung um.</li>
         <li><strong>Spalten ein-/ausblenden:</strong> Über das Spalten-Symbol oben rechts im Grid.</li>
         <li><strong>Spalten anordnen (Aufgaben):</strong> Spaltenköpfe per Drag &amp; Drop verschieben.</li>

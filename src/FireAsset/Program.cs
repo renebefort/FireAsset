@@ -52,6 +52,10 @@ builder.Services.AddScoped<ChangelogService>();
 // Adaptiver Dialog-Wrapper: deaktiviert Draggable/Resizable auf <= 768px (Touch/Tablet).
 builder.Services.AddScoped<AdaptiveDialogService>();
 
+// PDF-Export der Protokolle (PdfSharp/MigraDoc). Nutzt die Windows-Systemschriften (z. B. Arial).
+builder.Services.AddScoped<ProtocolPdfExportService>();
+PdfSharp.Fonts.GlobalFontSettings.UseWindowsFontsUnderWindows = true;
+
 // Authentifizierung: schlanke Cookie-Auth.
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>

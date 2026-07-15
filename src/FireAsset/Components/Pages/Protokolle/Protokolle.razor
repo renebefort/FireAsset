@@ -1,14 +1,20 @@
 @page "/protokolle"
 @attribute [Authorize]
 @inject ProtocolService ProtocolService
+@inject ProtocolPdfExportService PdfExport
 @inject AdaptiveDialogService Dialogs
 @inject NotificationService Notifications
+@inject IJSRuntime JS
 
 <PageTitle>Protokolle · Asset Manager</PageTitle>
 
-<RadzenText TextStyle="TextStyle.H4" class="rz-mb-3">Prüfprotokolle</RadzenText>
+<RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center" class="rz-mb-3">
+    <RadzenText TextStyle="TextStyle.H4" class="rz-my-0">Prüfprotokolle</RadzenText>
+    <RadzenButton Icon="picture_as_pdf" Text="Gefilterte als PDF exportieren" ButtonStyle="ButtonStyle.Secondary"
+                  Click="ExportFilteredAsync" Disabled="@_exporting" />
+</RadzenStack>
 
-<RadzenDataGrid Data="@_protocols" TItem="ProtocolService.ProtocolListItem" AllowSorting="true"
+<RadzenDataGrid @ref="_grid" Data="@_protocols" TItem="ProtocolService.ProtocolListItem" AllowSorting="true"
                 AllowFiltering="true" FilterMode="FilterMode.CheckBoxList" GridLines="DataGridGridLines.Both" AllowColumnResize="true"
                 AllowColumnPicking="true" AllowPaging="true" PageSize="25"
                 PageSizeOptions="@(new int[] { 10, 25, 50, 100 })" ShowPagingSummary="true"
@@ -47,6 +53,8 @@
     private Task<AuthenticationState>? AuthState { get; set; }
 
     private List<ProtocolService.ProtocolListItem> _protocols = new();
+    private RadzenDataGrid<ProtocolService.ProtocolListItem>? _grid;
+    private bool _exporting;
     private int? _currentUserId;
     private bool _isAdmin;
 
@@ -63,6 +71,34 @@
     }
 
     private async Task Reload() => _protocols = await ProtocolService.GetListAsync();
+
+    /// <summary>Exportiert alle aktuell im Grid gefilterten Protokolle als ZIP (ein PDF je Protokoll).</summary>
+    private async Task ExportFilteredAsync()
+    {
+        if (_exporting || _grid is null) return;
+
+        // View = die gefilterte und sortierte Ansicht (über alle Seiten hinweg).
+        var ids = _grid.View.Select(p => p.Id).ToList();
+        if (ids.Count == 0)
+        {
+            Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Info, Summary = "Hinweis", Detail = "Keine Protokolle im aktuellen Filter.", Duration = 4000 });
+            return;
+        }
+
+        _exporting = true;
+        try
+        {
+            var zip = await PdfExport.BuildZipAsync(ids);
+            using var stream = new MemoryStream(zip);
+            using var streamRef = new DotNetStreamReference(stream);
+            await JS.InvokeVoidAsync("downloadFileFromStream", "protokolle-pdf.zip", streamRef);
+            Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = "Export", Detail = $"{ids.Count} Protokoll(e) als PDF exportiert.", Duration = 5000 });
+        }
+        finally
+        {
+            _exporting = false;
+        }
+    }
 
     private async Task OpenDetail(int id)
     {

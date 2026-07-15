@@ -9,10 +9,7 @@
 
 <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center" class="rz-mb-3">
     <RadzenText TextStyle="TextStyle.H4" class="rz-my-0">Artikelstamm</RadzenText>
-    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
-        <RadzenButton Icon="swap_horiz" Text="Standortwechsel" ButtonStyle="ButtonStyle.Secondary" Click="OpenLocationChange" />
-        <RadzenButton Icon="add" Text="Artikel anlegen" ButtonStyle="ButtonStyle.Primary" Click="() => OpenEditor(null)" />
-    </RadzenStack>
+    <RadzenButton Icon="add" Text="Artikel anlegen" ButtonStyle="ButtonStyle.Primary" Click="() => OpenEditor(null)" />
 </RadzenStack>
 
 <RadzenCard class="rz-mb-3">
@@ -145,14 +142,6 @@
         var result = await Dialogs.OpenAsync<ArticleEditDialog>($"Artikel kopieren: {a.Identification}",
             new Dictionary<string, object?> { ["CopyFromArticleId"] = a.Id, ["UserId"] = _userId },
             new DialogOptions { Width = "1000px", Height = "85%", Resizable = true, Draggable = true });
-        if (result is true) await Reload();
-    }
-
-    private async Task OpenLocationChange()
-    {
-        var result = await Dialogs.OpenAsync<LocationChangeDialog>("Standortwechsel",
-            new Dictionary<string, object?> { ["UserId"] = _userId },
-            new DialogOptions { Width = "500px", Resizable = false, Draggable = true });
         if (result is true) await Reload();
     }
 

@@ -273,6 +273,27 @@ public class ArticleService
         await db.ArticlePhotos.Where(p => p.ArticleId == articleId).ExecuteDeleteAsync();
     }
 
+    /// <summary>Übernimmt das Foto eines Quell-Artikels auf einen Ziel-Artikel (z. B. beim Kopieren).</summary>
+    public async Task CopyPhotoAsync(int sourceArticleId, int targetArticleId)
+    {
+        await using var db = await _factory.CreateDbContextAsync();
+        var source = await db.ArticlePhotos.AsNoTracking().FirstOrDefaultAsync(p => p.ArticleId == sourceArticleId);
+        if (source is null) return;
+
+        var target = await db.ArticlePhotos.FirstOrDefaultAsync(p => p.ArticleId == targetArticleId);
+        if (target is null)
+        {
+            target = new ArticlePhoto { ArticleId = targetArticleId };
+            db.ArticlePhotos.Add(target);
+        }
+        target.ContentType = source.ContentType;
+        target.Data = source.Data;
+        target.Thumbnail = source.Thumbnail;
+        target.SizeBytes = source.SizeBytes;
+        target.CreatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+    }
+
     /// <summary>Liefert die gewünschte Foto-Variante oder null.</summary>
     public async Task<PhotoData?> GetPhotoAsync(int articleId, bool thumbnail)
     {
