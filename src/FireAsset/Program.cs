@@ -46,6 +46,9 @@ builder.Services.AddScoped<InspectionService>();
 builder.Services.AddScoped<ProtocolService>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<ExportService>();
+builder.Services.AddScoped<DocumentTemplateService>();
+builder.Services.AddScoped<DocumentService>();
+builder.Services.AddScoped<DocumentPdfService>();
 builder.Services.AddSingleton<LoginThrottleService>();
 builder.Services.AddScoped<ChangelogService>();
 
@@ -166,6 +169,15 @@ app.MapGet("/artikel/{id:int}/foto/thumb", async (int id, ArticleService article
     if (photo is null) return Results.NotFound();
     http.Response.Headers["X-Content-Type-Options"] = "nosniff";
     return Results.File(photo.Data, photo.ContentType);
+}).RequireAuthorization();
+
+// Dokument als PDF herunterladen (freier Brief / Verwendungsnachweis) – nur für angemeldete Benutzer.
+app.MapGet("/dokumente/{id:int}/pdf", async (int id, DocumentPdfService pdf) =>
+{
+    var result = await pdf.RenderAsync(id);
+    return result is null
+        ? Results.NotFound()
+        : Results.File(result.Value.Pdf, "application/pdf", result.Value.FileName);
 }).RequireAuthorization();
 
 app.Run();

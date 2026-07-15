@@ -127,7 +127,7 @@ public class ProtocolPdfExportService
         IReadOnlyDictionary<int, Location> locationsById,
         IReadOnlyDictionary<(int, int), string> attachmentNames)
     {
-        var doc = new Document();
+        var doc = new MigraDoc.DocumentObjectModel.Document();
         var normal = doc.Styles["Normal"]!;
         normal.Font.Name = "Arial";
         normal.Font.Size = 10;

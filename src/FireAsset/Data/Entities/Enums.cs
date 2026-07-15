@@ -42,6 +42,34 @@ public enum InspectionResult
     NichtBestanden = 2,
 }
 
+/// <summary>Art eines Dokuments.</summary>
+public enum DocumentType
+{
+    /// <summary>Freier Brief (Titel, Empfänger, Absender, Betreff, Hauptteil, Signatur).</summary>
+    Brief = 0,
+
+    /// <summary>Verwendungsnachweis mit fester Struktur inkl. erfasster Artikelliste.</summary>
+    Verwendungsnachweis = 1,
+}
+
+/// <summary>Bearbeitungsstatus eines Dokuments.</summary>
+public enum DocumentStatus
+{
+    /// <summary>Entwurf: frei editierbar, keine Nebenwirkungen.</summary>
+    Entwurf = 0,
+
+    /// <summary>Abgeschlossen: schreibgeschützt; Nebenwirkungen (Umbuchung/Stilllegung) sind erfolgt.</summary>
+    Abgeschlossen = 1,
+}
+
+/// <summary>Art der Verwendung eines Verwendungsnachweises.</summary>
+public enum UsageKind
+{
+    NachEinsatz = 0,
+    NachUebung = 1,
+    Regelwartung = 2,
+}
+
 /// <summary>Status einer Prüfaufgabe (bewusst nicht "TaskStatus", um die Kollision mit System.Threading.Tasks.TaskStatus zu vermeiden).</summary>
 public enum InspectionTaskStatus
 {

@@ -1,0 +1,481 @@
+@page "/dokumente/neu/{TemplateId:int}"
+@page "/dokumente/{Id:int}"
+@attribute [Authorize]
+@using FireAsset.Data.Entities
+@inject DocumentService DocumentService
+@inject LocationService LocationService
+@inject ArticleService ArticleService
+@inject NavigationManager Nav
+@inject NotificationService Notifications
+@inject AdaptiveDialogService Dialogs
+@inject IJSRuntime JS
+
+<PageTitle>@PageHeading · Asset Manager</PageTitle>
+
+@if (_doc is null)
+{
+    <RadzenText TextStyle="TextStyle.Body1">@(_loadError ?? "Wird geladen…")</RadzenText>
+}
+else
+{
+    <div style="max-width: 820px; margin: 0 auto;">
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem" class="rz-mb-3">
+            <RadzenIcon Icon="@(_doc.Type == DocumentType.Verwendungsnachweis ? "assignment" : "mail")" Style="font-size:1.8rem; color:var(--rz-primary);" />
+            <RadzenText TextStyle="TextStyle.H4" class="rz-my-0">@PageHeading</RadzenText>
+            @if (_readOnly)
+            {
+                <RadzenBadge Text="abgeschlossen" BadgeStyle="BadgeStyle.Success" class="rz-ml-2" />
+            }
+        </RadzenStack>
+
+        @if (_readOnly)
+        {
+            <RadzenText TextStyle="TextStyle.Body2" class="rz-mb-3" Style="color:#6b7280;">
+                Dieses Dokument ist abgeschlossen und schreibgeschützt. Änderungen sind nicht mehr möglich.
+            </RadzenText>
+        }
+
+        <RadzenCard class="rz-mb-3">
+            <div class="rz-mb-2">
+                <label class="fa-label">Titel</label>
+                <input class="fa-input" @bind="_doc.Title" disabled="@_readOnly" />
+            </div>
+            <RadzenRow Gap="0.75rem">
+                <RadzenColumn Size="12" SizeMd="6">
+                    <label class="fa-label">Empfänger</label>
+                    <textarea class="fa-input fa-textarea" rows="3" @bind="_doc.Recipient" disabled="@_readOnly"></textarea>
+                </RadzenColumn>
+                <RadzenColumn Size="12" SizeMd="6">
+                    <label class="fa-label">Absender</label>
+                    <textarea class="fa-input fa-textarea" rows="3" @bind="_doc.Sender" disabled="@_readOnly"></textarea>
+                </RadzenColumn>
+            </RadzenRow>
+        </RadzenCard>
+
+        @if (_doc.Type == DocumentType.Brief)
+        {
+            <RadzenCard class="rz-mb-3">
+                <div class="rz-mb-2">
+                    <label class="fa-label">Betreff</label>
+                    <input class="fa-input" @bind="_doc.Subject" disabled="@_readOnly" />
+                </div>
+                <div>
+                    <label class="fa-label">Hauptteil</label>
+                    <textarea class="fa-input fa-textarea" rows="10" @bind="_doc.Body" disabled="@_readOnly"></textarea>
+                </div>
+            </RadzenCard>
+        }
+        else
+        {
+            <RadzenCard class="rz-mb-3">
+                <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-mb-2" Style="font-weight:600;">Verwendung</RadzenText>
+                <RadzenRow Gap="0.75rem">
+                    <RadzenColumn Size="12" SizeMd="6">
+                        <label class="fa-label">Art der Verwendung</label>
+                        <select class="fa-input" @bind="_doc.UsageKind" disabled="@_readOnly">
+                            <option value="">(bitte wählen)</option>
+                            <option value="@UsageKind.NachEinsatz">nach Einsatz</option>
+                            <option value="@UsageKind.NachUebung">nach Übung</option>
+                            <option value="@UsageKind.Regelwartung">zur Regelwartung</option>
+                        </select>
+                    </RadzenColumn>
+                    <RadzenColumn Size="12" SizeMd="6">
+                        <label class="fa-label">Verwendungszweck / Ort</label>
+                        <input class="fa-input" @bind="_doc.UsagePurpose" placeholder="z. B. Brennender PKW, Heuchelheim" disabled="@_readOnly" />
+                    </RadzenColumn>
+                </RadzenRow>
+                <RadzenRow Gap="0.75rem" class="rz-mt-2">
+                    <RadzenColumn Size="12" SizeMd="4">
+                        <label class="fa-label">Verwendungsdatum</label>
+                        <RadzenDatePicker @bind-Value="_doc.UsageDate" TValue="DateTime?" DateFormat="dd.MM.yyyy" Style="width:100%" Disabled="@_readOnly" />
+                    </RadzenColumn>
+                    <RadzenColumn Size="12" SizeMd="4">
+                        <label class="fa-label">Auftragsdatum</label>
+                        <RadzenDatePicker @bind-Value="_doc.OrderDate" TValue="DateTime?" DateFormat="dd.MM.yyyy" Style="width:100%" Disabled="@_readOnly" />
+                    </RadzenColumn>
+                    <RadzenColumn Size="12" SizeMd="4">
+                        <label class="fa-label">Zielstandort</label>
+                        <RadzenDropDown @bind-Value="_doc.TargetLocationId" Data="@_locations" TextProperty="Path" ValueProperty="Id"
+                                        AllowFiltering="true" FilterAsYouType="true" AllowClear="true"
+                                        FilterOperator="StringFilterOperator.Contains"
+                                        FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                        Placeholder="Zielstandort…" Style="width:100%" Disabled="@_readOnly" />
+                    </RadzenColumn>
+                </RadzenRow>
+            </RadzenCard>
+
+            <RadzenCard class="rz-mb-3">
+                <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-mb-2" Style="font-weight:600;">Artikel erfassen</RadzenText>
+                @if (!_readOnly)
+                {
+                    <div style="position:relative;">
+                        <label class="fa-label">Artikel-Barcode</label>
+                        <input class="fa-input" style="font-size:1.1rem; padding:0.65rem 0.8rem;"
+                               @bind="_articleBarcode" @bind:event="oninput" @ref="_articleBox" @onkeydown="OnArticleKeyDown"
+                               placeholder="scannen oder tippen…" autocomplete="off" />
+                        @if (_matches.Count > 0)
+                        {
+                            <div style="position:absolute; left:0; right:0; z-index:20; background:#fff; border:1px solid #e5e7eb;
+                                        border-radius:6px; margin-top:2px; box-shadow:0 4px 14px rgba(0,0,0,0.12); overflow:hidden;">
+                                @foreach (var s in _matches)
+                                {
+                                    <div @onclick="() => AddByBarcodeAsync(s.Barcode)"
+                                         style="padding:0.55rem 0.8rem; cursor:pointer; border-bottom:1px solid #f1f5f9;">
+                                        <div style="font-weight:600;">@s.Barcode</div>
+                                        <div style="font-size:0.85rem; color:#6b7280;">@s.Identification</div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                    @if (_articleHint is not null)
+                    {
+                        <div style="color:#dc2626; font-size:0.85rem; margin-top:4px;">@_articleHint</div>
+                    }
+                }
+
+                @if (_lines.Count == 0)
+                {
+                    <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-2" Style="color:#6b7280;">Noch keine Artikel erfasst.</RadzenText>
+                }
+                else
+                {
+                    <div class="rz-mt-3">
+                        @foreach (var group in GroupedLines)
+                        {
+                            <div style="margin-bottom:0.6rem;">
+                                <div style="font-weight:600; display:flex; justify-content:space-between;">
+                                    <span>@group.Category</span>
+                                    <span style="color:#6b7280;">@group.Lines.Count</span>
+                                </div>
+                                <div style="border:1px solid #e5e7eb; border-radius:6px; overflow:hidden; margin-top:2px;">
+                                    @foreach (var line in group.Lines)
+                                    {
+                                        <div style="display:flex; align-items:center; gap:0.5rem; padding:0.45rem 0.7rem; border-bottom:1px solid #f1f5f9;">
+                                            <div style="flex:1 1 auto; min-width:0;">
+                                                <span style="font-weight:600;">@line.Barcode</span>
+                                                <span style="font-size:0.82rem; color:#6b7280;"> · @line.Identification</span>
+                                                @if (line.IsPoolDevice)
+                                                {
+                                                    <RadzenBadge Text="FTZ-Pool" BadgeStyle="BadgeStyle.Warning" class="rz-ml-1" />
+                                                }
+                                            </div>
+                                            @if (!_readOnly)
+                                            {
+                                                <RadzenButton Icon="close" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
+                                                              Click="() => RemoveLine(line)" title="Entfernen" />
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                        <div style="font-weight:600; text-align:right; margin-top:0.3rem;">Gesamt: @_lines.Count</div>
+                    </div>
+                }
+            </RadzenCard>
+
+            <RadzenCard class="rz-mb-3">
+                <label class="fa-label">Bemerkung</label>
+                <textarea class="fa-input fa-textarea" rows="3" @bind="_doc.Remarks" disabled="@_readOnly"></textarea>
+            </RadzenCard>
+        }
+
+        <RadzenCard class="rz-mb-3">
+            <label class="fa-label">Signatur</label>
+            <textarea class="fa-input fa-textarea" rows="3" @bind="_doc.Signature" disabled="@_readOnly"></textarea>
+        </RadzenCard>
+
+        <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem" Wrap="FlexWrap.Wrap">
+            <RadzenButton Text="Zurück" Icon="arrow_back" ButtonStyle="ButtonStyle.Light" Click="GoBack" Disabled="@_busy" />
+            @if (!_readOnly)
+            {
+                <RadzenButton Text="Speichern" Icon="save" ButtonStyle="ButtonStyle.Light" Click="() => SaveOnlyAsync()" Disabled="@_busy" />
+                <RadzenButton Text="Speichern + PDF" Icon="picture_as_pdf" ButtonStyle="ButtonStyle.Secondary" Click="SaveAndPdfAsync" Disabled="@_busy" />
+                <RadzenButton Text="Abschließen + PDF" Icon="task_alt" ButtonStyle="ButtonStyle.Primary" Click="FinalizeAsync" Disabled="@_busy" />
+            }
+            else
+            {
+                <a href="@($"dokumente/{_doc.Id}/pdf")" target="_blank" rel="noopener"
+                   class="rz-button rz-button-md rz-primary rz-button-icon-left rz-variant-filled"
+                   style="text-decoration:none; display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 1rem;">
+                    <RadzenIcon Icon="picture_as_pdf" /> PDF öffnen
+                </a>
+            }
+        </RadzenStack>
+    </div>
+}
+
+@code {
+    [Parameter] public int? Id { get; set; }
+    [Parameter] public int? TemplateId { get; set; }
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    private sealed class ArticleLine
+    {
+        public int? ArticleId { get; init; }
+        public string Barcode { get; init; } = "";
+        public string Identification { get; init; } = "";
+        public string Category { get; init; } = "";
+        public bool IsPoolDevice { get; init; }
+    }
+
+    private record GroupView(string Category, List<ArticleLine> Lines);
+    private record LocationOption(int Id, string Path);
+
+    private Document? _doc;
+    private bool _readOnly;
+    private bool _busy;
+    private string? _loadError;
+    private int? _userId;
+    private int? _loadedKey;
+
+    private readonly List<ArticleLine> _lines = new();
+    private List<LocationOption> _locations = new();
+    private List<ArticleService.BarcodeSuggestion> _suggestions = new();
+
+    private string _articleBarcode = string.Empty;
+    private string? _articleHint;
+    private ElementReference _articleBox;
+
+    private string PageHeading => _doc?.Type == DocumentType.Verwendungsnachweis ? "Verwendungsnachweis" : "Brief";
+
+    private List<ArticleService.BarcodeSuggestion> _matches =>
+        string.IsNullOrWhiteSpace(_articleBarcode)
+            ? new()
+            : _suggestions
+                .Where(s => s.Barcode.Contains(_articleBarcode.Trim(), StringComparison.OrdinalIgnoreCase)
+                            && !string.Equals(s.Barcode, _articleBarcode.Trim(), StringComparison.OrdinalIgnoreCase))
+                .Take(6).ToList();
+
+    private IEnumerable<GroupView> GroupedLines =>
+        _lines.GroupBy(l => l.Category)
+            .OrderBy(g => g.Key, StringComparer.CurrentCulture)
+            .Select(g => new GroupView(string.IsNullOrEmpty(g.Key) ? "(ohne Kategorie)" : g.Key,
+                g.OrderBy(l => l.Barcode, StringComparer.CurrentCulture).ToList()));
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState is not null)
+        {
+            var state = await AuthState;
+            var id = state.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (int.TryParse(id, out var parsed)) _userId = parsed;
+        }
+
+        var locations = await LocationService.GetAllAsync();
+        var byId = locations.ToDictionary(l => l.Id);
+        _locations = locations
+            .Select(l => new LocationOption(l.Id, LocationService.BuildPath(l, byId)))
+            .OrderBy(o => o.Path).ToList();
+
+        _suggestions = await ArticleService.GetBarcodeSuggestionsAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Verhindert erneutes Laden bei jedem Render (Route-Parameter bleiben stabil).
+        var key = Id ?? -(TemplateId ?? 0);
+        if (_loadedKey == key && _doc is not null) return;
+        _loadedKey = key;
+
+        if (Id is int docId)
+        {
+            var existing = await DocumentService.GetByIdAsync(docId);
+            if (existing is null)
+            {
+                _loadError = "Das Dokument existiert nicht mehr.";
+                return;
+            }
+            _doc = existing;
+            _readOnly = existing.Status == DocumentStatus.Abgeschlossen;
+            _lines.Clear();
+            _lines.AddRange(existing.Articles.Select(a => new ArticleLine
+            {
+                ArticleId = a.ArticleId,
+                Barcode = a.BarcodeSnapshot,
+                Identification = a.IdentificationSnapshot,
+                Category = a.CategoryNameSnapshot,
+                IsPoolDevice = a.Article?.IsPoolDevice ?? false,
+            }));
+        }
+        else if (TemplateId is int templateId)
+        {
+            var draft = await DocumentService.CreateFromTemplateAsync(templateId);
+            if (draft is null)
+            {
+                _loadError = "Die Vorlage existiert nicht mehr.";
+                return;
+            }
+            _doc = draft;
+            _readOnly = false;
+            _lines.Clear();
+        }
+    }
+
+    private async Task OnArticleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key is "Enter" or "NumpadEnter") await AddByBarcodeAsync(_articleBarcode);
+    }
+
+    private async Task AddByBarcodeAsync(string barcode)
+    {
+        _articleHint = null;
+        var code = barcode.Trim();
+        if (code.Length == 0) return;
+
+        var article = await ArticleService.FindByBarcodeAsync(code);
+        if (article is null)
+        {
+            _articleHint = $"Kein Artikel mit Barcode „{code}“ gefunden.";
+            await ResetArticleInputAsync();
+            return;
+        }
+        if (_lines.Any(l => l.ArticleId == article.Id))
+        {
+            _articleHint = $"„{article.Identification}“ ist bereits in der Liste.";
+            await ResetArticleInputAsync();
+            return;
+        }
+
+        _lines.Add(new ArticleLine
+        {
+            ArticleId = article.Id,
+            Barcode = article.Barcode ?? code,
+            Identification = article.Identification,
+            Category = article.Category?.Name ?? "",
+            IsPoolDevice = article.IsPoolDevice,
+        });
+        await ResetArticleInputAsync();
+    }
+
+    private void RemoveLine(ArticleLine line) => _lines.Remove(line);
+
+    private async Task ResetArticleInputAsync()
+    {
+        _articleBarcode = string.Empty;
+        StateHasChanged();
+        await _articleBox.FocusAsync();
+    }
+
+    private void SyncLinesToDoc()
+    {
+        if (_doc is null) return;
+        _doc.Articles = _lines.Select(l => new DocumentArticle
+        {
+            ArticleId = l.ArticleId,
+            BarcodeSnapshot = l.Barcode,
+            IdentificationSnapshot = l.Identification,
+            CategoryNameSnapshot = l.Category,
+        }).ToList();
+    }
+
+    /// <summary>Speichert den Entwurf. Gibt true bei Erfolg zurück.</summary>
+    private async Task<bool> SaveDraftAsync(bool notify)
+    {
+        if (_doc is null) return false;
+        SyncLinesToDoc();
+        var (id, error) = await DocumentService.SaveDraftAsync(_doc, _userId);
+        if (error is not null)
+        {
+            Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Warning, Summary = "Hinweis", Detail = error, Duration = 5000 });
+            return false;
+        }
+        _doc.Id = id;
+        // Version im Modell nachziehen (SaveDraft hat sie in der DB erhöht) für erneutes Speichern.
+        _doc.Version += 1;
+        if (notify)
+        {
+            Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = "Gespeichert", Detail = "Entwurf gespeichert.", Duration = 3000 });
+        }
+        return true;
+    }
+
+    private async Task SaveOnlyAsync()
+    {
+        if (_busy) return;
+        _busy = true;
+        try { await SaveDraftAsync(true); }
+        finally { _busy = false; }
+    }
+
+    private async Task SaveAndPdfAsync()
+    {
+        if (_doc is null || _busy) return;
+        _busy = true;
+        try
+        {
+            if (!await SaveDraftAsync(true)) return;
+            await JS.InvokeVoidAsync("open", $"dokumente/{_doc.Id}/pdf", "_blank");
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task FinalizeAsync()
+    {
+        if (_doc is null || _busy) return;
+        _busy = true;
+        try
+        {
+            string message;
+            if (_doc.Type == DocumentType.Verwendungsnachweis)
+            {
+                if (_doc.TargetLocationId is null)
+                {
+                    Notify("Bitte zuerst einen Zielstandort wählen.");
+                    return;
+                }
+                if (_lines.Count == 0)
+                {
+                    Notify("Bitte zuerst mindestens einen Artikel erfassen.");
+                    return;
+                }
+                var poolCount = _lines.Count(l => l.IsPoolDevice);
+                var others = _lines.Count - poolCount;
+                var target = _locations.FirstOrDefault(l => l.Id == _doc.TargetLocationId)?.Path ?? "Zielstandort";
+                message = $"{_lines.Count} Artikel werden auf „{target}“ umgebucht.";
+                if (poolCount > 0)
+                {
+                    message += $" Davon werden {poolCount} FTZ-Pool-Gerät(e) stillgelegt, {others} nur umgebucht.";
+                }
+                message += " Das Dokument wird abgeschlossen und schreibgeschützt. Fortfahren?";
+            }
+            else
+            {
+                message = "Das Dokument wird abgeschlossen und ist danach schreibgeschützt. Fortfahren?";
+            }
+
+            var confirmed = await Dialogs.Confirm(message, "Abschließen bestätigen",
+                new ConfirmOptions { OkButtonText = "Abschließen", CancelButtonText = "Abbrechen" });
+            if (confirmed != true) return;
+
+            // Erst Entwurf persistieren (inkl. aktueller Artikelliste), dann abschließen.
+            if (!await SaveDraftAsync(false)) return;
+
+            var result = await DocumentService.FinalizeAsync(_doc.Id, _userId);
+            if (result.Error is not null)
+            {
+                Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Warning, Summary = "Hinweis", Detail = result.Error, Duration = 6000 });
+                return;
+            }
+
+            var detail = _doc.Type == DocumentType.Verwendungsnachweis
+                ? $"Abgeschlossen: {result.MovedCount} Artikel umgebucht" + (result.PoolCount > 0 ? $", {result.PoolCount} FTZ-Pool-Gerät(e) stillgelegt." : ".")
+                : "Dokument abgeschlossen.";
+            Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = "Abgeschlossen", Detail = detail, Duration = 6000 });
+
+            var docId = _doc.Id;
+            await JS.InvokeVoidAsync("open", $"dokumente/{docId}/pdf", "_blank");
+            Nav.NavigateTo("dokumente");
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void GoBack() => Nav.NavigateTo("dokumente");
+
+    private void Notify(string message) =>
+        Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Warning, Summary = "Hinweis", Detail = message, Duration = 4000 });
+}
