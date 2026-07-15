@@ -1,0 +1,155 @@
+@page "/schnell/pruefung"
+@attribute [Authorize]
+@using FireAsset.Components.Pages.Aufgaben
+@inject ArticleService ArticleService
+@inject TaskService TaskService
+@inject AdaptiveDialogService Dialogs
+@inject NotificationService Notifications
+
+<PageTitle>Prüfung starten · Asset Manager</PageTitle>
+
+<div style="max-width: 560px; margin: 0 auto;">
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem" class="rz-mb-2">
+        <RadzenIcon Icon="qr_code_scanner" Style="font-size:1.8rem; color:var(--rz-primary);" />
+        <RadzenText TextStyle="TextStyle.H4" class="rz-my-0">Prüfung starten</RadzenText>
+    </RadzenStack>
+
+    <RadzenText TextStyle="TextStyle.Body2" class="rz-mb-3" Style="color:#4b5563;">
+        Artikel-Barcode scannen oder eingeben – die nächste fällige Prüfung wird direkt geöffnet.
+    </RadzenText>
+
+    <div style="position:relative;">
+        <label class="fa-label">Artikel-Barcode</label>
+        <input class="fa-input" style="font-size:1.15rem; padding:0.7rem 0.8rem;" inputmode="text"
+               @bind="_barcode" @bind:event="oninput" @ref="_box" @onkeydown="OnKeyDown"
+               placeholder="scannen oder tippen…" autocomplete="off" />
+
+        @if (_matches.Count > 0)
+        {
+            <div style="position:absolute; left:0; right:0; z-index:20; background:#fff; border:1px solid #e5e7eb;
+                        border-radius:6px; margin-top:2px; box-shadow:0 4px 14px rgba(0,0,0,0.12); overflow:hidden;">
+                @foreach (var s in _matches)
+                {
+                    <div @onclick="() => PickAsync(s.Barcode)"
+                         style="padding:0.6rem 0.8rem; cursor:pointer; border-bottom:1px solid #f1f5f9;">
+                        <div style="font-weight:600;">@s.Barcode</div>
+                        <div style="font-size:0.85rem; color:#6b7280;">@s.Identification</div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    <RadzenButton Text="Prüfung laden" Icon="play_arrow" ButtonStyle="ButtonStyle.Primary"
+                  Click="() => ResolveAsync()" Disabled="@_busy" class="rz-mt-3" Style="width:100%; padding:0.7rem;" />
+
+    @if (_hint is not null)
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Warning" Variant="Variant.Flat" ShowIcon="true" AllowClose="true"
+                     Close="() => _hint = null" class="rz-mt-3">
+            @_hint
+        </RadzenAlert>
+    }
+</div>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    private string _barcode = string.Empty;
+    private string? _hint;
+    private bool _busy;
+    private int? _userId;
+    private List<ArticleService.BarcodeSuggestion> _suggestions = new();
+    private ElementReference _box;
+
+    // Live-Vorschläge: bis zu 6 Barcodes, die die Eingabe enthalten (kein exakter Treffer nötig).
+    private List<ArticleService.BarcodeSuggestion> _matches =>
+        string.IsNullOrWhiteSpace(_barcode)
+            ? new()
+            : _suggestions
+                .Where(s => s.Barcode.Contains(_barcode.Trim(), StringComparison.OrdinalIgnoreCase)
+                            && !string.Equals(s.Barcode, _barcode.Trim(), StringComparison.OrdinalIgnoreCase))
+                .Take(6).ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState is not null)
+        {
+            var state = await AuthState;
+            var id = state.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (int.TryParse(id, out var parsed)) _userId = parsed;
+        }
+        _suggestions = await ArticleService.GetBarcodeSuggestionsAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender) await _box.FocusAsync();
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key is "Enter" or "NumpadEnter") await ResolveAsync();
+    }
+
+    private async Task PickAsync(string barcode)
+    {
+        _barcode = barcode;
+        await ResolveAsync();
+    }
+
+    private async Task ResolveAsync()
+    {
+        if (_busy) return;
+        var code = _barcode.Trim();
+        if (code.Length == 0) return;
+
+        _busy = true;
+        _hint = null;
+        try
+        {
+            var article = await ArticleService.FindByBarcodeAsync(code);
+            if (article is null)
+            {
+                _hint = $"Kein Artikel mit Barcode „{code}“ gefunden.";
+                await ResetInputAsync();
+                return;
+            }
+
+            var next = await TaskService.GetNextOpenTaskByArticleAsync(article.Id);
+            if (next is null)
+            {
+                _hint = $"Für „{article.Identification}“ (Barcode {code}) ist keine Prüfung offen.";
+                await ResetInputAsync();
+                return;
+            }
+
+            await Dialogs.OpenAsync<InspectionDialog>($"Prüfung: {next.ArticleIdentification}",
+                new Dictionary<string, object?>
+                {
+                    ["TaskId"] = next.TaskId,
+                    ["ArticleId"] = next.ArticleId,
+                    ["FormId"] = next.FormId,
+                    ["ArticleName"] = next.ArticleIdentification,
+                    ["DueDateParam"] = next.DueDate,
+                    ["Unplanned"] = false,
+                    ["UserId"] = _userId,
+                },
+                new DialogOptions { Width = "860px", Height = "85%", Resizable = true, Draggable = true });
+
+            // Nach der Prüfung zurück zur Scan-Eingabe für das nächste Gerät.
+            await ResetInputAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task ResetInputAsync()
+    {
+        _barcode = string.Empty;
+        StateHasChanged();
+        await _box.FocusAsync();
+    }
+}

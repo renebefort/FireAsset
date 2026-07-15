@@ -200,6 +200,44 @@ public class ArticleService
         return (true, $"„{article.Identification}“ wurde nach „{location.Name}“ umgelagert.");
     }
 
+    /// <summary>Barcode + Identifikation aller Artikel mit Barcode – für die Live-Vorschläge der Schnellaktionen.</summary>
+    public record BarcodeSuggestion(string Barcode, string Identification);
+
+    public async Task<List<BarcodeSuggestion>> GetBarcodeSuggestionsAsync()
+    {
+        await using var db = await _factory.CreateDbContextAsync();
+        return await db.Articles
+            .Where(a => a.Barcode != null && a.Barcode != "")
+            .OrderBy(a => a.Barcode)
+            .Select(a => new BarcodeSuggestion(a.Barcode!, a.Identification))
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Bucht mehrere Artikel gemeinsam auf einen Zielstandort (Schnellaktion Stapel-Standortwechsel).
+    /// Gibt die Anzahl umgelagerter Artikel und ggf. eine Fehlermeldung zurück.
+    /// </summary>
+    public async Task<(int moved, string? error)> ChangeLocationForArticlesAsync(
+        IReadOnlyList<int> articleIds, int locationId, int? userId)
+    {
+        if (articleIds.Count == 0) return (0, "Keine Artikel in der Liste.");
+
+        await using var db = await _factory.CreateDbContextAsync();
+        var location = await db.Locations.FindAsync(locationId);
+        if (location is null) return (0, "Der Zielstandort existiert nicht mehr.");
+
+        var articles = await db.Articles.Where(a => articleIds.Contains(a.Id)).ToListAsync();
+        var now = DateTime.UtcNow;
+        foreach (var article in articles)
+        {
+            article.LocationId = locationId;
+            article.ModifiedAt = now;
+            article.ModifiedByUserId = userId;
+        }
+        await db.SaveChangesAsync();
+        return (articles.Count, null);
+    }
+
     public async Task<List<Category>> GetActiveCategoriesAsync()
     {
         await using var db = await _factory.CreateDbContextAsync();

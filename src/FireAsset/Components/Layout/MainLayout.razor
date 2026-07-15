@@ -27,6 +27,10 @@
     <RadzenSidebar @bind-Expanded="_sidebarExpanded">
         <RadzenPanelMenu>
             <RadzenPanelMenuItem Text="Dashboard" Icon="dashboard" Path="" />
+            <RadzenPanelMenuItem Text="Schnellaktionen" Icon="bolt" Expanded="true">
+                <RadzenPanelMenuItem Text="Prüfung starten" Icon="qr_code_scanner" Path="schnell/pruefung" />
+                <RadzenPanelMenuItem Text="Standortwechsel" Icon="swap_horiz" Path="schnell/standortwechsel" />
+            </RadzenPanelMenuItem>
             <RadzenPanelMenuItem Text="Stammdaten" Icon="settings">
                 <RadzenPanelMenuItem Text="Benutzer" Icon="group" Path="stammdaten/benutzer" />
                 <RadzenPanelMenuItem Text="Standorte" Icon="place" Path="stammdaten/standorte" />
