@@ -62,6 +62,22 @@ public enum DocumentStatus
     Abgeschlossen = 1,
 }
 
+/// <summary>Protokollierte Aktion im Artikel-Logbuch.</summary>
+public enum ArticleLogAction
+{
+    /// <summary>Artikel angelegt.</summary>
+    Angelegt = 0,
+
+    /// <summary>Artikel bearbeitet.</summary>
+    Editiert = 1,
+
+    /// <summary>Artikel inaktiv gesetzt (manuell oder automatisch, z. B. FTZ-Pool).</summary>
+    InaktivGesetzt = 2,
+
+    /// <summary>Standortwechsel (Von → Nach).</summary>
+    Standortwechsel = 3,
+}
+
 /// <summary>Art der Verwendung eines Verwendungsnachweises.</summary>
 public enum UsageKind
 {

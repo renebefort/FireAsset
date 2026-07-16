@@ -121,7 +121,7 @@ public class TaskService
     /// Folge-Workflow weiterläuft. Läuft atomar; doppelte Stilllegung wird abgewiesen.
     /// Gibt (Fehlermeldung, Info zur Folgeaufgabe) zurück.
     /// </summary>
-    public async Task<(string? error, string? info)> DecommissionAsync(int taskId, bool createFollowUp)
+    public async Task<(string? error, string? info)> DecommissionAsync(int taskId, bool createFollowUp, int? userId = null)
     {
         await using var db = await _factory.CreateDbContextAsync();
         await using var tx = await db.Database.BeginTransactionAsync();
@@ -146,7 +146,7 @@ public class TaskService
         {
             // FTZ-Pool-Gerät: keine Folgeaufgabe. War dies die letzte offene Aufgabe, wird der
             // Artikel stillgelegt (Ende-Datum = heute).
-            info = await _taskGeneration.FinalizePoolDeviceAsync(db, task.Article, DateTime.Today);
+            info = await _taskGeneration.FinalizePoolDeviceAsync(db, task.Article, DateTime.Today, userId);
             await db.SaveChangesAsync();
         }
         else if (createFollowUp)

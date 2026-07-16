@@ -13,11 +13,13 @@ public class DocumentService
 {
     private readonly IDbContextFactory<AppDbContext> _factory;
     private readonly TaskGenerationService _taskGeneration;
+    private readonly ArticleLogService _articleLog;
 
-    public DocumentService(IDbContextFactory<AppDbContext> factory, TaskGenerationService taskGeneration)
+    public DocumentService(IDbContextFactory<AppDbContext> factory, TaskGenerationService taskGeneration, ArticleLogService articleLog)
     {
         _factory = factory;
         _taskGeneration = taskGeneration;
+        _articleLog = articleLog;
     }
 
     /// <summary>Zeile für das Dokumente-Grid.</summary>
@@ -212,12 +214,19 @@ public class DocumentService
             var articles = await db.Articles.Where(a => articleIds.Contains(a.Id)).ToListAsync();
             var today = DateTime.Today;
             var now = DateTime.UtcNow;
+            // Standortnamen für das Logbuch einmalig auflösen.
+            var locationNames = await db.Locations.ToDictionaryAsync(l => l.Id, l => l.Name);
+            var targetName = locationNames.GetValueOrDefault(targetId);
+            var userName = await _articleLog.ResolveUserNameAsync(db, userId);
 
             foreach (var article in articles)
             {
+                var fromName = article.LocationId is int o ? locationNames.GetValueOrDefault(o) : null;
                 article.LocationId = targetId;
                 article.ModifiedAt = now;
                 article.ModifiedByUserId = userId;
+                _articleLog.Add(db, article, ArticleLogAction.Standortwechsel,
+                    ArticleLogService.LocationChange(fromName, targetName), userId, userName);
                 movedCount++;
 
                 if (article.IsPoolDevice)
@@ -229,7 +238,8 @@ public class DocumentService
                                     && t.Status != InspectionTaskStatus.Stillgelegt)
                         .ExecuteUpdateAsync(s => s.SetProperty(t => t.Status, InspectionTaskStatus.Stillgelegt));
 
-                    var note = await _taskGeneration.FinalizePoolDeviceAsync(db, article, today);
+                    // Stilllegung (inkl. Logbuch-Eintrag) über die zentrale Methode.
+                    var note = await _taskGeneration.FinalizePoolDeviceAsync(db, article, today, userId);
                     if (note is not null) notes.Add(note);
                     poolCount++;
                 }

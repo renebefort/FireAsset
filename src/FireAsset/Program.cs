@@ -46,6 +46,8 @@ builder.Services.AddScoped<InspectionService>();
 builder.Services.AddScoped<ProtocolService>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<ExportService>();
+builder.Services.AddScoped<ArticleLogService>();
+builder.Services.AddScoped<AppInfoService>();
 builder.Services.AddScoped<DocumentTemplateService>();
 builder.Services.AddScoped<DocumentService>();
 builder.Services.AddScoped<DocumentPdfService>();

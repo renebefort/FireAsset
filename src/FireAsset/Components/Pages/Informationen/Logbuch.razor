@@ -1,0 +1,60 @@
+@page "/logbuch"
+@attribute [Authorize(Roles = "Administrator")]
+@inject ArticleLogService ArticleLogService
+
+<PageTitle>Logbuch · Asset Manager</PageTitle>
+
+<RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem" class="rz-mb-3">
+    <RadzenIcon Icon="history_edu" Style="font-size:1.8rem; color:var(--rz-primary);" />
+    <RadzenText TextStyle="TextStyle.H4" class="rz-my-0">Logbuch</RadzenText>
+</RadzenStack>
+
+<RadzenText TextStyle="TextStyle.Body2" class="rz-mb-3" Style="color:#6b7280;">
+    Protokolliert alle Änderungen an Artikeln (Anlage, Bearbeitung, Stilllegung, Standortwechsel) –
+    wer wann was getan hat. Nur für Administratoren sichtbar.
+</RadzenText>
+
+<RadzenDataGrid Data="@_entries" TItem="ArticleLogService.LogRow" AllowSorting="true"
+                AllowFiltering="true" FilterMode="FilterMode.CheckBoxList" GridLines="DataGridGridLines.Both"
+                AllowColumnResize="true" AllowPaging="true" PageSize="25" PageSizeOptions="@(new int[] { 25, 50, 100, 200 })" ShowPagingSummary="true">
+    <Columns>
+        <RadzenDataGridColumn TItem="ArticleLogService.LogRow" Property="Article" Title="Artikel" />
+        <RadzenDataGridColumn TItem="ArticleLogService.LogRow" Property="Action" Title="Aktion" Width="170px">
+            <Template Context="e">
+                <RadzenBadge Text="@ActionLabel(e.Action)" BadgeStyle="@ActionStyle(e.Action)" />
+            </Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="ArticleLogService.LogRow" Property="Details" Title="Details" />
+        <RadzenDataGridColumn TItem="ArticleLogService.LogRow" Property="User" Title="Wer" Width="200px">
+            <Template Context="e">@(e.User ?? "—")</Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="ArticleLogService.LogRow" Property="Timestamp" Title="Wann" Width="180px" SortOrder="SortOrder.Descending">
+            <Template Context="e">@e.Timestamp.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</Template>
+        </RadzenDataGridColumn>
+    </Columns>
+</RadzenDataGrid>
+
+@code {
+    private List<ArticleLogService.LogRow> _entries = new();
+
+    protected override async Task OnInitializedAsync() =>
+        _entries = await ArticleLogService.GetEntriesAsync();
+
+    private static string ActionLabel(ArticleLogAction action) => action switch
+    {
+        ArticleLogAction.Angelegt => "Angelegt",
+        ArticleLogAction.Editiert => "Editiert",
+        ArticleLogAction.InaktivGesetzt => "Inaktiv gesetzt",
+        ArticleLogAction.Standortwechsel => "Standortwechsel",
+        _ => action.ToString(),
+    };
+
+    private static BadgeStyle ActionStyle(ArticleLogAction action) => action switch
+    {
+        ArticleLogAction.Angelegt => BadgeStyle.Success,
+        ArticleLogAction.Editiert => BadgeStyle.Info,
+        ArticleLogAction.InaktivGesetzt => BadgeStyle.Warning,
+        ArticleLogAction.Standortwechsel => BadgeStyle.Light,
+        _ => BadgeStyle.Light,
+    };
+}

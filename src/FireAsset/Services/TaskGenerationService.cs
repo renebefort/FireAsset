@@ -17,6 +17,13 @@ namespace FireAsset.Services;
 /// </summary>
 public class TaskGenerationService
 {
+    private readonly ArticleLogService _articleLog;
+
+    public TaskGenerationService(ArticleLogService articleLog)
+    {
+        _articleLog = articleLog;
+    }
+
     /// <summary>
     /// Fügt für alle aktiven Intervalle der Kategorie des Artikels Aufgaben hinzu (ohne Save).
     /// Gibt Meldungen zu übersprungenen Intervallen zurück.
@@ -135,7 +142,7 @@ public class TaskGenerationService
     /// Erwartet, dass die aktuelle Aufgabe bereits als erledigt/stillgelegt persistiert wurde (gleiche
     /// Transaktion), damit die Restabfrage den Endzustand widerspiegelt.
     /// </summary>
-    public async Task<string?> FinalizePoolDeviceAsync(AppDbContext db, Article article, DateTime closedDate)
+    public async Task<string?> FinalizePoolDeviceAsync(AppDbContext db, Article article, DateTime closedDate, int? userId = null)
     {
         var hasOpenTasks = await db.InspectionTasks.AnyAsync(t =>
             t.ArticleId == article.Id
@@ -148,6 +155,8 @@ public class TaskGenerationService
 
         article.IsActive = false;
         article.EndDate = closedDate.Date;
+        await _articleLog.LogAsync(db, article, ArticleLogAction.InaktivGesetzt,
+            "FTZ-Pool: automatisch stillgelegt (letzte Prüfaufgabe abgeschlossen)", userId);
         return $"FTZ-Pool-Gerät „{article.Identification}“: letzte Prüfaufgabe abgeschlossen – " +
                $"Artikel wurde automatisch stillgelegt (Ende-Datum {closedDate:dd.MM.yyyy}).";
     }

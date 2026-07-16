@@ -11,11 +11,13 @@ public class ArticleService
 {
     private readonly IDbContextFactory<AppDbContext> _factory;
     private readonly TaskGenerationService _taskGeneration;
+    private readonly ArticleLogService _articleLog;
 
-    public ArticleService(IDbContextFactory<AppDbContext> factory, TaskGenerationService taskGeneration)
+    public ArticleService(IDbContextFactory<AppDbContext> factory, TaskGenerationService taskGeneration, ArticleLogService articleLog)
     {
         _factory = factory;
         _taskGeneration = taskGeneration;
+        _articleLog = articleLog;
     }
 
     public async Task<List<Article>> GetArticlesAsync()
@@ -68,6 +70,7 @@ public class ArticleService
         article.CreatedByUserId = userId;
         db.Articles.Add(article);
         var messages = await _taskGeneration.AddInitialTasksAsync(db, article);
+        await _articleLog.LogAsync(db, article, ArticleLogAction.Angelegt, null, userId);
 
         try
         {
@@ -93,6 +96,9 @@ public class ArticleService
 
         Normalize(article);
         var categoryChanged = existing.CategoryId != article.CategoryId;
+        // Vorzustand für das Logbuch festhalten, bevor die Felder überschrieben werden.
+        var oldLocationId = existing.LocationId;
+        var wasActive = existing.IsActive;
 
         // Optimistische Nebenläufigkeit: Original-Version stammt aus dem Bearbeitungsdialog.
         db.Entry(existing).Property(a => a.Version).OriginalValue = article.Version;
@@ -129,6 +135,29 @@ public class ArticleService
             db.InspectionTasks.RemoveRange(openAutoTasks);
             // Kein Nachziehen der Eingangskontrolle beim Kategoriewechsel – die entsteht nur bei Neuanlage.
             messages = await _taskGeneration.AddInitialTasksAsync(db, existing, includeEntryControl: false);
+        }
+
+        // Logbuch: Standortwechsel und/oder Stilllegung getrennt erfassen; sonst generisch "Editiert".
+        var locationChanged = oldLocationId != article.LocationId;
+        var deactivated = wasActive && !article.IsActive;
+        var userName = await _articleLog.ResolveUserNameAsync(db, userId);
+        if (locationChanged)
+        {
+            var ids = new List<int>();
+            if (oldLocationId is int o) ids.Add(o);
+            if (article.LocationId is int n) ids.Add(n);
+            var names = await db.Locations.Where(l => ids.Contains(l.Id)).ToDictionaryAsync(l => l.Id, l => l.Name);
+            var from = oldLocationId is int oo ? names.GetValueOrDefault(oo) : null;
+            var to = article.LocationId is int nn ? names.GetValueOrDefault(nn) : null;
+            _articleLog.Add(db, existing, ArticleLogAction.Standortwechsel, ArticleLogService.LocationChange(from, to), userId, userName);
+        }
+        if (deactivated)
+        {
+            _articleLog.Add(db, existing, ArticleLogAction.InaktivGesetzt, null, userId, userName);
+        }
+        if (!locationChanged && !deactivated)
+        {
+            _articleLog.Add(db, existing, ArticleLogAction.Editiert, null, userId, userName);
         }
 
         try
@@ -194,9 +223,14 @@ public class ArticleService
             return (false, $"Kein Standort mit Barcode „{locationBarcode}“ gefunden.");
         }
 
+        var fromName = article.LocationId is int oldId
+            ? await db.Locations.Where(l => l.Id == oldId).Select(l => l.Name).FirstOrDefaultAsync()
+            : null;
         article.LocationId = location.Id;
         article.ModifiedAt = DateTime.UtcNow;
         article.ModifiedByUserId = userId;
+        await _articleLog.LogAsync(db, article, ArticleLogAction.Standortwechsel,
+            ArticleLogService.LocationChange(fromName, location.Name), userId);
         await db.SaveChangesAsync();
         return (true, $"„{article.Identification}“ wurde nach „{location.Name}“ umgelagert.");
     }
@@ -229,11 +263,18 @@ public class ArticleService
 
         var articles = await db.Articles.Where(a => articleIds.Contains(a.Id)).ToListAsync();
         var now = DateTime.UtcNow;
+        // Alte Standortnamen für das Logbuch einmalig auflösen.
+        var oldIds = articles.Where(a => a.LocationId is not null).Select(a => a.LocationId!.Value).Distinct().ToList();
+        var oldNames = await db.Locations.Where(l => oldIds.Contains(l.Id)).ToDictionaryAsync(l => l.Id, l => l.Name);
+        var userName = await _articleLog.ResolveUserNameAsync(db, userId);
         foreach (var article in articles)
         {
+            var from = article.LocationId is int o ? oldNames.GetValueOrDefault(o) : null;
             article.LocationId = locationId;
             article.ModifiedAt = now;
             article.ModifiedByUserId = userId;
+            _articleLog.Add(db, article, ArticleLogAction.Standortwechsel,
+                ArticleLogService.LocationChange(from, location.Name), userId, userName);
         }
         await db.SaveChangesAsync();
         return (articles.Count, null);

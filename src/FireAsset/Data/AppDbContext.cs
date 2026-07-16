@@ -28,6 +28,7 @@ public class AppDbContext : DbContext
     public DbSet<DocumentTemplate> DocumentTemplates => Set<DocumentTemplate>();
     public DbSet<Document> Documents => Set<Document>();
     public DbSet<DocumentArticle> DocumentArticles => Set<DocumentArticle>();
+    public DbSet<ArticleLogEntry> ArticleLogEntries => Set<ArticleLogEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -322,6 +323,25 @@ public class AppDbContext : DbContext
             e.HasOne(a => a.Article)
                 .WithMany()
                 .HasForeignKey(a => a.ArticleId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<ArticleLogEntry>(e =>
+        {
+            e.Property(l => l.Action).HasConversion<int>();
+            e.Property(l => l.ArticleIdentificationSnapshot).HasMaxLength(300).IsRequired();
+            e.Property(l => l.Details).HasMaxLength(1000);
+            e.Property(l => l.UserNameSnapshot).HasMaxLength(201);
+            e.HasIndex(l => l.Timestamp);
+            // Logbuch folgt dem Artikel: wird er (nur Testdaten) gelöscht, verschwindet auch sein Log.
+            e.HasOne(l => l.Article)
+                .WithMany()
+                .HasForeignKey(l => l.ArticleId)
+                .OnDelete(DeleteBehavior.Cascade);
+            // Benutzer-Löschung hebt nur den Verweis auf; der Name bleibt als Snapshot erhalten.
+            e.HasOne(l => l.User)
+                .WithMany()
+                .HasForeignKey(l => l.UserId)
                 .OnDelete(DeleteBehavior.SetNull);
         });
     }
