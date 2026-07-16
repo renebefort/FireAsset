@@ -1,0 +1,62 @@
+@page "/schnell/dokument"
+@attribute [Authorize]
+@using FireAsset.Data.Entities
+@inject DocumentTemplateService TemplateService
+@inject NavigationManager Nav
+
+<PageTitle>Neues Dokument · Asset Manager</PageTitle>
+
+<div style="max-width: 640px; margin: 0 auto;">
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem" class="rz-mb-2">
+        <RadzenIcon Icon="post_add" Style="font-size:1.8rem; color:var(--rz-primary);" />
+        <RadzenText TextStyle="TextStyle.H4" class="rz-my-0">Neues Dokument</RadzenText>
+    </RadzenStack>
+    <RadzenText TextStyle="TextStyle.Body2" class="rz-mb-3" Style="color:#6b7280;">
+        Vorlage antippen – das Dokument öffnet sich direkt zum Ausfüllen.
+    </RadzenText>
+
+    @if (_templates is null)
+    {
+        <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate" />
+    }
+    else if (_templates.Count == 0)
+    {
+        <RadzenCard>
+            <RadzenText TextStyle="TextStyle.Body2" Style="color:#6b7280;">
+                Keine aktive Vorlage vorhanden. Bitte zuerst unter
+                <b>Stammdaten → Dokumentvorlagen</b> eine Vorlage anlegen.
+            </RadzenText>
+        </RadzenCard>
+    }
+    else
+    {
+        <RadzenStack Gap="0.75rem">
+            @foreach (var t in _templates)
+            {
+                <button type="button" @onclick="() => Create(t.Id)"
+                        style="display:flex; align-items:center; gap:0.9rem; width:100%; text-align:left;
+                               padding:1rem 1.1rem; background:#fff; border:1px solid #e5e7eb; border-radius:10px;
+                               cursor:pointer; box-shadow:0 1px 2px rgba(0,0,0,0.04);">
+                    <RadzenIcon Icon="@(t.Type == DocumentType.Verwendungsnachweis ? "assignment" : "mail")"
+                                Style="font-size:2rem; color:var(--rz-primary); flex:0 0 auto;" />
+                    <span style="min-width:0;">
+                        <span style="display:block; font-weight:600; font-size:1.05rem;">@t.Name</span>
+                        <span style="display:block; font-size:0.85rem; color:#6b7280;">@TypeLabel(t.Type)</span>
+                    </span>
+                </button>
+            }
+        </RadzenStack>
+    }
+</div>
+
+@code {
+    private List<DocumentTemplate>? _templates;
+
+    protected override async Task OnInitializedAsync() =>
+        _templates = await TemplateService.GetActiveAsync();
+
+    private static string TypeLabel(DocumentType type) =>
+        type == DocumentType.Verwendungsnachweis ? "Verwendungsnachweis" : "Freier Brief";
+
+    private void Create(int templateId) => Nav.NavigateTo($"dokumente/neu/{templateId}");
+}
