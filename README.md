@@ -199,7 +199,7 @@ Backup-Funktion (gemäß Spec).
   gelangen nicht ins Repository.
 
 ### Zielumgebung
-- Zentraler Server mit mehreren Clients, bis zu ca. 3 gleichzeitige Nutzer.
+- Zentraler Server mit mehreren Clients und gleichzeitigen Nutzern.
 - Keine Offline-Funktionalität, keine Benachrichtigungen, keine Mehrsprachigkeit.
 
 ## Datenbank-Migrationen
@@ -208,14 +208,3 @@ cd src/FireAsset
 dotnet ef migrations add <Name> -o Data/Migrations
 ```
 Migrationen werden beim Anwendungsstart automatisch angewendet (`DbInitializer`).
-
-## Umsetzungsstand
-- [x] M1 – Projektgerüst: Blazor + Radzen + MS SQL Server + Login + Admin-Seed
-- [x] M2 – Datenmodell + EF-Migration
-- [x] M3 – Stammdaten-CRUD (Benutzer, Standorte, Kategorien & Intervalle)
-- [x] M4 – Formulare + Versionierung
-- [x] M5 – Artikel + automatische Aufgabenanlage
-- [x] M6 – Aufgaben + Prüfung
-- [x] M7 – Protokolle
-- [x] M8 – Dashboard + CSV-Export
-- [x] M9 – Feinschliff

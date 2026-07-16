@@ -50,18 +50,20 @@
         <RadzenDataGridColumn TItem="DocumentService.DocumentRow" Property="CreatedByName" Title="Erstellt von" Width="160px" />
         <RadzenDataGridColumn TItem="DocumentService.DocumentRow" Context="d" Title="Aktionen" Sortable="false" Filterable="false" Width="170px" TextAlign="TextAlign.Center">
             <Template Context="d">
-                <RadzenButton Icon="@(d.Status == DocumentStatus.Abgeschlossen ? "visibility" : "edit")"
-                              ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
-                              Click="() => Open(d.Id)" title="@(d.Status == DocumentStatus.Abgeschlossen ? "Ansehen" : "Bearbeiten")" />
-                <a href="@($"dokumente/{d.Id}/pdf")" target="_blank" rel="noopener"
-                   class="rz-button rz-button-sm rz-button-icon-only rz-secondary rz-variant-filled"
-                   style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center;" title="PDF">
-                    <RadzenIcon Icon="picture_as_pdf" />
-                </a>
-                @if (d.Status == DocumentStatus.Entwurf)
-                {
-                    <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small" Click="() => Delete(d)" title="Löschen" />
-                }
+                <div style="display:flex; align-items:center; justify-content:center; gap:0.25rem;">
+                    <RadzenButton Icon="@(d.Status == DocumentStatus.Abgeschlossen ? "visibility" : "edit")"
+                                  ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                                  Click="() => Open(d.Id)" title="@(d.Status == DocumentStatus.Abgeschlossen ? "Ansehen" : "Bearbeiten")" />
+                    <a href="@($"dokumente/{d.Id}/pdf")" target="_blank" rel="noopener"
+                       class="rz-button rz-button-sm rz-button-icon-only rz-secondary rz-variant-filled"
+                       style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center;" title="PDF">
+                        <RadzenIcon Icon="picture_as_pdf" />
+                    </a>
+                    @if (d.Status == DocumentStatus.Entwurf)
+                    {
+                        <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small" Click="() => Delete(d)" title="Löschen" />
+                    }
+                </div>
             </Template>
         </RadzenDataGridColumn>
     </Columns>

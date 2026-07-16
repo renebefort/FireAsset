@@ -81,6 +81,9 @@ public class DocumentService
             Body = t.BodyDefault,
             Signature = t.SignatureDefault,
             TargetLocationId = t.Type == DocumentType.Verwendungsnachweis ? t.DefaultTargetLocationId : null,
+            // Verwendungs- und Auftragsdatum mit heute vorbelegen (nur Verwendungsnachweis).
+            UsageDate = t.Type == DocumentType.Verwendungsnachweis ? DateTime.Today : null,
+            OrderDate = t.Type == DocumentType.Verwendungsnachweis ? DateTime.Today : null,
         };
     }
 

@@ -121,6 +121,7 @@ public class ArticleService
         existing.CategoryId = article.CategoryId;
         existing.LocationId = article.LocationId;
         existing.IsActive = article.IsActive;
+        existing.IsPoolDevice = article.IsPoolDevice;
         existing.ModifiedAt = DateTime.UtcNow;
         existing.ModifiedByUserId = userId;
 

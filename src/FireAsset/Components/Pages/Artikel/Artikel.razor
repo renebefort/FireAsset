@@ -13,16 +13,27 @@
 </RadzenStack>
 
 <RadzenCard class="rz-mb-3">
-    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.End" Gap="0.5rem">
-        <RadzenFormField Text="Barcode-Suche" Style="min-width: 260px">
-            <RadzenTextBox @bind-Value="_searchBarcode" @ref="_searchBox" @bind-Value:event="oninput"
-                           @onkeydown="OnSearchKeyDown" />
-        </RadzenFormField>
-        <RadzenButton Icon="search" Text="Suchen" Click="SearchByBarcode" />
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.End" JustifyContent="JustifyContent.SpaceBetween" Gap="0.5rem" Wrap="FlexWrap.Wrap">
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.End" Gap="0.5rem">
+            <div style="min-width: 260px;">
+                <label class="fa-label">Barcode-Suche</label>
+                <input class="fa-input" @bind="_searchBarcode" @bind:event="oninput"
+                       @onkeydown="OnSearchKeyDown" placeholder="Barcode…" autocomplete="off" />
+            </div>
+            <RadzenButton Icon="search" Text="Suchen" Click="SearchByBarcode" />
+            @if (!string.IsNullOrWhiteSpace(_appliedSearch))
+            {
+                <RadzenButton Icon="close" Text="Zurücksetzen" ButtonStyle="ButtonStyle.Light" Click="ClearSearch" />
+            }
+        </RadzenStack>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem">
+            <RadzenCheckBox @bind-Value="_showInactive" Name="showInactive" />
+            <RadzenLabel Text="Auch inaktive Artikel anzeigen" Component="showInactive" />
+        </RadzenStack>
     </RadzenStack>
 </RadzenCard>
 
-<RadzenDataGrid Data="@_articles" TItem="Article" AllowSorting="true"
+<RadzenDataGrid Data="@FilteredArticles" TItem="Article" AllowSorting="true"
                 AllowFiltering="true" FilterMode="FilterMode.CheckBoxList" GridLines="DataGridGridLines.Both" AllowColumnResize="true"
                 AllowColumnPicking="true" AllowPaging="true" PageSize="20"
                 PageSizeOptions="@(new int[] { 10, 20, 50, 100 })" ShowPagingSummary="true"
@@ -59,10 +70,10 @@
                              BadgeStyle="@InspectionResultInfo.BadgeStyle(a.CurrentInspectionStatus)" />
             </Template>
         </RadzenDataGridColumn>
-        <RadzenDataGridColumn TItem="Article" Property="IsActive" Title="Aktiv" Width="80px" TextAlign="TextAlign.Center">
+        <RadzenDataGridColumn TItem="Article" Property="IsActive" Title="Aktiv" Width="90px" Filterable="false" TextAlign="TextAlign.Center">
             <Template Context="a"><RadzenCheckBox Value="a.IsActive" Disabled="true" /></Template>
         </RadzenDataGridColumn>
-        <RadzenDataGridColumn TItem="Article" Property="IsPoolDevice" Title="FTZ-Pool" Width="90px" TextAlign="TextAlign.Center">
+        <RadzenDataGridColumn TItem="Article" Property="IsPoolDevice" Title="FTZ" Width="100px" TextAlign="TextAlign.Center">
             <Template Context="a"><RadzenCheckBox Value="a.IsPoolDevice" Disabled="true" /></Template>
         </RadzenDataGridColumn>
         <RadzenDataGridColumn TItem="Article" Context="a" Title="Aktionen" Sortable="false" Filterable="false" Pickable="false" Width="200px" TextAlign="TextAlign.Center">
@@ -81,11 +92,28 @@
     private Task<AuthenticationState>? AuthState { get; set; }
 
     private List<Article> _articles = new();
+    private bool _showInactive;
+    private string _appliedSearch = string.Empty;
+
+    // Standardmäßig nur aktive Artikel; die Checkbox blendet inaktive zusätzlich ein.
+    // Zusätzlich – falls gesetzt – nach dem Barcode-Suchbegriff (Teiltreffer, ohne Groß-/Kleinschreibung).
+    private IEnumerable<Article> FilteredArticles
+    {
+        get
+        {
+            var query = _showInactive ? _articles : _articles.Where(a => a.IsActive);
+            if (!string.IsNullOrWhiteSpace(_appliedSearch))
+            {
+                query = query.Where(a => a.Barcode is not null
+                    && a.Barcode.Contains(_appliedSearch, StringComparison.OrdinalIgnoreCase));
+            }
+            return query;
+        }
+    }
     private HashSet<int> _photoIds = new();
     // Cache-Buster: erzwingt nach jedem Reload frische Thumbnails (z. B. nach Foto-Wechsel).
     private string _photoCacheKey = string.Empty;
     private string _searchBarcode = string.Empty;
-    private RadzenTextBox? _searchBox;
     private int? _userId;
 
     protected override async Task OnInitializedAsync()
@@ -106,25 +134,21 @@
         _photoCacheKey = Guid.NewGuid().ToString("N");
     }
 
-    private async Task OnSearchKeyDown(KeyboardEventArgs e)
+    private void OnSearchKeyDown(KeyboardEventArgs e)
     {
         if (e.Key is "Enter" or "NumpadEnter")
         {
-            await SearchByBarcode();
+            SearchByBarcode();
         }
     }
 
-    private async Task SearchByBarcode()
+    /// <summary>Übernimmt den Suchbegriff als Grid-Filter (Barcode-Teiltreffer).</summary>
+    private void SearchByBarcode() => _appliedSearch = _searchBarcode?.Trim() ?? string.Empty;
+
+    private void ClearSearch()
     {
-        if (string.IsNullOrWhiteSpace(_searchBarcode)) return;
-        var article = await ArticleService.FindByBarcodeAsync(_searchBarcode);
-        if (article is null)
-        {
-            Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Warning, Summary = "Nicht gefunden", Detail = $"Kein Artikel mit Barcode „{_searchBarcode}“.", Duration = 4000 });
-            return;
-        }
         _searchBarcode = string.Empty;
-        await OpenEditor(article.Id);
+        _appliedSearch = string.Empty;
     }
 
     private async Task OpenEditor(int? articleId)
@@ -132,7 +156,7 @@
         var result = await Dialogs.OpenAsync<ArticleEditDialog>(
             articleId is null ? "Artikel anlegen" : "Artikel bearbeiten",
             new Dictionary<string, object?> { ["ArticleId"] = articleId, ["UserId"] = _userId },
-            new DialogOptions { Width = "1000px", Height = "85%", Resizable = true, Draggable = true });
+            new DialogOptions { Width = "1000px", Resizable = true, Draggable = true });
 
         if (result is true) await Reload();
     }
@@ -141,7 +165,7 @@
     {
         var result = await Dialogs.OpenAsync<ArticleEditDialog>($"Artikel kopieren: {a.Identification}",
             new Dictionary<string, object?> { ["CopyFromArticleId"] = a.Id, ["UserId"] = _userId },
-            new DialogOptions { Width = "1000px", Height = "85%", Resizable = true, Draggable = true });
+            new DialogOptions { Width = "1000px", Resizable = true, Draggable = true });
         if (result is true) await Reload();
     }
 
