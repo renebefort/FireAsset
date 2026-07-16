@@ -123,6 +123,14 @@
         Kategoriewechsel eines bestehenden Artikels ersetzt dessen offene automatische Aufgaben durch die der
         neuen Kategorie.
     </RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-2">
+        <strong>Liste durchsuchen:</strong> Standardmäßig zeigt der Artikelstamm nur <strong>aktive</strong>
+        Artikel. Über die Checkbox <em>„Auch inaktive Artikel anzeigen"</em> blendest Du stillgelegte Geräte
+        zusätzlich ein (die Spalte <em>Aktiv</em> zeigt den Status). Mit der <strong>Barcode-Suche</strong>
+        (Feld eingeben und <em>Suchen</em> bzw. Enter) filterst Du die Liste auf passende Barcodes (Teiltreffer);
+        <em>Zurücksetzen</em> hebt den Filter wieder auf. Zum Bearbeiten öffnest Du einen Artikel per
+        <strong>Doppelklick</strong> auf die Zeile oder über das Stift-Symbol.
+    </RadzenText>
 </RadzenCard>
 
 <RadzenCard class="rz-mb-3">
@@ -209,6 +217,11 @@
         oder unbekannte Barcodes werden abgefangen. Mit <strong>„Alle umlagern"</strong> werden nach einer Rückfrage
         alle Geräte der Liste auf den Zielstandort gebucht. Ein USB-/Bluetooth-Scanner verhält sich wie eine Tastatur.
     </RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-2">
+        <strong>Neues Dokument:</strong> Öffnet einen touch-optimierten Vorlagen-Picker – Vorlage antippen und
+        das Dokument (freier Brief oder Verwendungsnachweis) direkt ausfüllen. Praktisch am Tablet/Smartphone,
+        z. B. um einen Verwendungsnachweis nach dem Einsatz vor Ort zu erfassen. Details siehe Abschnitt „Dokumente".
+    </RadzenText>
 </RadzenCard>
 
 <RadzenCard class="rz-mb-3">
@@ -244,7 +257,34 @@
 </RadzenCard>
 
 <RadzenCard class="rz-mb-3">
-    <RadzenText TextStyle="TextStyle.H6">12. Dashboard &amp; Export</RadzenText>
+    <RadzenText TextStyle="TextStyle.H6">12. Dokumente</RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2">
+        Unter <em>Dokumente</em> erzeugst Du Schreiben für externe Prüfer. Es gibt zwei Typen, die als
+        <strong>Vorlagen</strong> unter <em>Stammdaten → Dokumentvorlagen</em> vorbereitet werden:
+        den <strong>freien Brief</strong> (Titel, Empfänger, Absender, Betreff, Hauptteil, Signatur) und den
+        <strong>Verwendungsnachweis</strong> (z. B. für den Dienstleister FTZ). Eine Vorlage belegt die
+        Abschnitte vor; beim Verwendungsnachweis zusätzlich einen Standard-Zielstandort.
+    </RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-2">
+        <strong>Neues Dokument:</strong> Oben rechts über <strong>„Neues Dokument"</strong> eine Vorlage wählen.
+        Die Felder sind aus der Vorlage vorbelegt und frei änderbar. Beim <strong>Verwendungsnachweis</strong>
+        erfasst Du zusätzlich Art der Verwendung, Verwendungszweck/Ort, Verwendungs- und Auftragsdatum, den
+        Zielstandort sowie die Artikel <strong>per Barcode</strong> (Scanner oder Tastatur) – wie beim
+        Standortwechsel. Die erfassten Artikel werden nach Kategorie gruppiert (Barcodes kommagetrennt, mit
+        Summe). Die Erfassung ist für <strong>Tablet und Smartphone</strong> optimiert.
+    </RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-2">
+        <strong>Speichern &amp; Abschließen:</strong> <em>Speichern</em> legt einen <strong>Entwurf</strong> an
+        (jederzeit änderbar), <em>Speichern + PDF</em> erzeugt zusätzlich das PDF. <em>Abschließen + PDF</em>
+        schließt das Dokument ab: Es wird <strong>schreibgeschützt</strong>. Beim Verwendungsnachweis werden
+        dabei alle erfassten Artikel auf den <strong>Zielstandort umgebucht</strong>; <strong>FTZ-Pool-Geräte</strong>
+        werden zusätzlich stillgelegt (offene Aufgaben werden geschlossen, der Artikel wird inaktiv, das
+        Ende-Datum auf heute gesetzt). Abgeschlossene Dokumente lassen sich nur noch ansehen und als PDF öffnen.
+    </RadzenText>
+</RadzenCard>
+
+<RadzenCard class="rz-mb-3">
+    <RadzenText TextStyle="TextStyle.H6">13. Dashboard &amp; Export</RadzenText>
     <RadzenText TextStyle="TextStyle.Body2">
         Das <em>Dashboard</em> zeigt Kennzahlen (Artikel, offene/überfällige Aufgaben, Protokolle), die
         Prüfstatus-Verteilung und die nächsten fälligen Aufgaben – farblich markiert wie in der
@@ -256,7 +296,7 @@
 </RadzenCard>
 
 <RadzenCard class="rz-mb-3">
-    <RadzenText TextStyle="TextStyle.H6">13. Tipps zu den Übersichten</RadzenText>
+    <RadzenText TextStyle="TextStyle.H6">14. Tipps zu den Übersichten</RadzenText>
     <ul>
         <li><strong>Filtern (Excel-artig):</strong> Über das Filter-Symbol im Spaltenkopf öffnest Du eine
             Auswahlliste der vorkommenden Werte und hakst die gewünschten an – wie der Spaltenfilter in Excel.</li>
@@ -268,10 +308,23 @@
 </RadzenCard>
 
 <RadzenCard class="rz-mb-3">
-    <RadzenText TextStyle="TextStyle.H6">14. Changelog</RadzenText>
+    <RadzenText TextStyle="TextStyle.H6">15. Logbuch (nur Administratoren)</RadzenText>
     <RadzenText TextStyle="TextStyle.Body2">
-        Unter <em>Changelog</em> (letzter Menüpunkt) siehst Du, was sich in der Anwendung geändert hat –
-        als Auflistung der Entwicklungsschritte, gruppiert nach Versionen (neueste zuerst). Änderungen,
-        die noch keiner Version zugeordnet sind, erscheinen unter „Unveröffentlicht".
+        Das <em>Logbuch</em> (eigener Menüpunkt, nur für Administratoren sichtbar) protokolliert alle
+        Änderungen an Artikeln: <strong>Anlage</strong>, <strong>Bearbeitung</strong>,
+        <strong>Inaktiv-Setzen</strong> und <strong>Standortwechsel</strong> (Von → Nach) – jeweils mit
+        <em>Artikel, Aktion, Wer und Wann</em>. Erfasst werden sowohl direkte Aktionen im Artikelstamm als
+        auch automatische Folgen (z. B. Umbuchung/Stilllegung durch einen Verwendungsnachweis oder die
+        FTZ-Pool-Stilllegung nach der letzten Prüfung).
+    </RadzenText>
+</RadzenCard>
+
+<RadzenCard class="rz-mb-3">
+    <RadzenText TextStyle="TextStyle.H6">16. Informationen (Handbuch, Changelog, Über)</RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2">
+        In der Menügruppe <em>Informationen</em> findest Du dieses <strong>Handbuch</strong>, den
+        <strong>Changelog</strong> (Entwicklungsschritte, gruppiert nach Versionen; neueste zuerst,
+        Unversioniertes unter „Unveröffentlicht") sowie die Seite <strong>Über FireAsset</strong> mit
+        Version, Build-Datum und dem Link auf das GitHub-Repository.
     </RadzenText>
 </RadzenCard>

@@ -1,0 +1,132 @@
+@using FireAsset.Data.Entities
+@inject DocumentTemplateService TemplateService
+@inject LocationService LocationService
+@inject NotificationService Notifications
+@inject DialogService Dialogs
+
+<RadzenStack Gap="0.85rem">
+    <RadzenRow Gap="0.75rem">
+        <RadzenColumn Size="12" SizeMd="8">
+            <label class="fa-label">Name</label>
+            <input class="fa-input" @bind="_template.Name" />
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMd="4">
+            <label class="fa-label">Typ</label>
+            <select class="fa-input" @bind="_template.Type">
+                <option value="@DocumentType.Brief">Freier Brief</option>
+                <option value="@DocumentType.Verwendungsnachweis">Verwendungsnachweis</option>
+            </select>
+        </RadzenColumn>
+    </RadzenRow>
+
+    <label style="display:flex; align-items:center; gap:0.5rem;">
+        <input type="checkbox" @bind="_template.IsActive" /> Aktiv (im Dropdown „Neues Dokument“ auswählbar)
+    </label>
+
+    <div>
+        <label class="fa-label">Titel (Vorbelegung)</label>
+        <input class="fa-input" @bind="_template.TitleDefault" />
+    </div>
+
+    <RadzenRow Gap="0.75rem">
+        <RadzenColumn Size="12" SizeMd="6">
+            <label class="fa-label">Empfänger (Vorbelegung)</label>
+            <textarea class="fa-input fa-textarea" rows="3" @bind="_template.RecipientDefault"></textarea>
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMd="6">
+            <label class="fa-label">Absender (Vorbelegung)</label>
+            <textarea class="fa-input fa-textarea" rows="3" @bind="_template.SenderDefault"></textarea>
+        </RadzenColumn>
+    </RadzenRow>
+
+    @if (_template.Type == DocumentType.Brief)
+    {
+        <div>
+            <label class="fa-label">Betreff (Vorbelegung)</label>
+            <input class="fa-input" @bind="_template.SubjectDefault" />
+        </div>
+        <div>
+            <label class="fa-label">Hauptteil (Vorbelegung)</label>
+            <textarea class="fa-input fa-textarea" rows="6" @bind="_template.BodyDefault"></textarea>
+        </div>
+    }
+    else
+    {
+        <div>
+            <label class="fa-label">Standard-Zielstandort</label>
+            <RadzenDropDown @bind-Value="_template.DefaultTargetLocationId"
+                            Data="@_locationOptions" TextProperty="Path" ValueProperty="Id"
+                            AllowFiltering="true" FilterAsYouType="true" AllowClear="true"
+                            FilterOperator="StringFilterOperator.Contains"
+                            FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                            Placeholder="(kein Standard-Zielstandort)" Style="width: 100%" />
+        </div>
+    }
+
+    <div>
+        <label class="fa-label">Signatur (Vorbelegung)</label>
+        <textarea class="fa-input fa-textarea" rows="3" @bind="_template.SignatureDefault"></textarea>
+    </div>
+
+    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem">
+        <RadzenButton Text="Abbrechen" ButtonStyle="ButtonStyle.Light" Click="() => Dialogs.Close(false)" />
+        <RadzenButton Text="Speichern" ButtonStyle="ButtonStyle.Primary" Icon="save" Click="Save" Disabled="@_saving" />
+    </RadzenStack>
+</RadzenStack>
+
+@code {
+    [Parameter] public int? TemplateId { get; set; }
+
+    private record LocationOption(int Id, string Path);
+
+    private DocumentTemplate _template = new() { Type = DocumentType.Brief, IsActive = true };
+    private List<LocationOption> _locationOptions = new();
+    private bool _saving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var locations = await LocationService.GetAllAsync();
+        var byId = locations.ToDictionary(l => l.Id);
+        _locationOptions = locations
+            .Select(l => new LocationOption(l.Id, LocationService.BuildPath(l, byId)))
+            .OrderBy(o => o.Path)
+            .ToList();
+
+        if (TemplateId is int id)
+        {
+            var existing = await TemplateService.GetByIdAsync(id);
+            if (existing is not null) _template = existing;
+        }
+    }
+
+    private async Task Save()
+    {
+        if (_saving) return;
+        _saving = true;
+        try
+        {
+            if (string.IsNullOrWhiteSpace(_template.Name))
+            {
+                Notify("Der Name ist erforderlich.");
+                return;
+            }
+
+            var error = _template.Id == 0
+                ? await TemplateService.CreateAsync(_template)
+                : await TemplateService.UpdateAsync(_template);
+            if (error is not null)
+            {
+                Notify(error);
+                return;
+            }
+            Dialogs.Close(true);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void Notify(string message) =>
+        Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Warning, Summary = "Hinweis", Detail = message, Duration = 4000 });
+}

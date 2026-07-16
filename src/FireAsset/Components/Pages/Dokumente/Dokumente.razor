@@ -1,0 +1,115 @@
+@page "/dokumente"
+@attribute [Authorize]
+@using FireAsset.Data.Entities
+@inject DocumentService DocumentService
+@inject DocumentTemplateService TemplateService
+@inject NavigationManager Nav
+@inject NotificationService Notifications
+@inject AdaptiveDialogService Dialogs
+
+<PageTitle>Dokumente · Asset Manager</PageTitle>
+
+<RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center" class="rz-mb-3">
+    <RadzenText TextStyle="TextStyle.H4" class="rz-my-0">Dokumente</RadzenText>
+    @if (_templates.Count > 0)
+    {
+        <RadzenSplitButton Text="Neues Dokument" Icon="add" ButtonStyle="ButtonStyle.Primary" Click="OnNewDocument">
+            @foreach (var t in _templates)
+            {
+                <RadzenSplitButtonItem Text="@($"{t.Name} ({TypeLabel(t.Type)})")" Value="@t.Id.ToString()" />
+            }
+        </RadzenSplitButton>
+    }
+    else
+    {
+        <RadzenText TextStyle="TextStyle.Body2" class="rz-my-0" Style="color:#6b7280;">
+            Keine aktive Vorlage – bitte zuerst unter <b>Stammdaten → Dokumentvorlagen</b> anlegen.
+        </RadzenText>
+    }
+</RadzenStack>
+
+<RadzenDataGrid Data="@_documents" TItem="DocumentService.DocumentRow" AllowSorting="true"
+                AllowFiltering="true" FilterMode="FilterMode.CheckBoxList" GridLines="DataGridGridLines.Both"
+                AllowColumnResize="true" AllowPaging="true" PageSize="20" PageSizeOptions="@(new int[] { 10, 20, 50, 100 })" ShowPagingSummary="true">
+    <Columns>
+        <RadzenDataGridColumn TItem="DocumentService.DocumentRow" Property="Type" Title="Typ" Width="170px">
+            <Template Context="d">@TypeLabel(d.Type)</Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="DocumentService.DocumentRow" Property="Heading" Title="Titel" />
+        <RadzenDataGridColumn TItem="DocumentService.DocumentRow" Property="Recipient" Title="Empfänger" />
+        <RadzenDataGridColumn TItem="DocumentService.DocumentRow" Property="ArticleCount" Title="Artikel" Width="90px" TextAlign="TextAlign.Center">
+            <Template Context="d">@(d.Type == DocumentType.Verwendungsnachweis ? d.ArticleCount.ToString() : "—")</Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="DocumentService.DocumentRow" Property="Status" Title="Status" Width="130px" TextAlign="TextAlign.Center">
+            <Template Context="d">
+                <RadzenBadge Text="@(d.Status == DocumentStatus.Abgeschlossen ? "abgeschlossen" : "Entwurf")"
+                             BadgeStyle="@(d.Status == DocumentStatus.Abgeschlossen ? BadgeStyle.Success : BadgeStyle.Info)" />
+            </Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="DocumentService.DocumentRow" Property="CreatedAt" Title="Erstellt" Width="150px" FormatString="{0:dd.MM.yyyy}" />
+        <RadzenDataGridColumn TItem="DocumentService.DocumentRow" Property="CreatedByName" Title="Erstellt von" Width="160px" />
+        <RadzenDataGridColumn TItem="DocumentService.DocumentRow" Context="d" Title="Aktionen" Sortable="false" Filterable="false" Width="170px" TextAlign="TextAlign.Center">
+            <Template Context="d">
+                <div style="display:flex; align-items:center; justify-content:center; gap:0.25rem;">
+                    <RadzenButton Icon="@(d.Status == DocumentStatus.Abgeschlossen ? "visibility" : "edit")"
+                                  ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                                  Click="() => Open(d.Id)" title="@(d.Status == DocumentStatus.Abgeschlossen ? "Ansehen" : "Bearbeiten")" />
+                    <a href="@($"dokumente/{d.Id}/pdf")" target="_blank" rel="noopener"
+                       class="rz-button rz-button-sm rz-button-icon-only rz-secondary rz-variant-filled"
+                       style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center;" title="PDF">
+                        <RadzenIcon Icon="picture_as_pdf" />
+                    </a>
+                    @if (d.Status == DocumentStatus.Entwurf)
+                    {
+                        <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small" Click="() => Delete(d)" title="Löschen" />
+                    }
+                </div>
+            </Template>
+        </RadzenDataGridColumn>
+    </Columns>
+</RadzenDataGrid>
+
+@code {
+    private List<DocumentService.DocumentRow> _documents = new();
+    private List<DocumentTemplate> _templates = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _templates = await TemplateService.GetActiveAsync();
+        await Reload();
+    }
+
+    private async Task Reload() => _documents = await DocumentService.GetAllAsync();
+
+    private static string TypeLabel(DocumentType type) =>
+        type == DocumentType.Verwendungsnachweis ? "Verwendungsnachweis" : "Freier Brief";
+
+    private void OnNewDocument(RadzenSplitButtonItem? item)
+    {
+        // Hauptklick ohne Auswahl: erste Vorlage; sonst die gewählte.
+        var templateId = item?.Value is { Length: > 0 } v && int.TryParse(v, out var id)
+            ? id
+            : _templates.FirstOrDefault()?.Id;
+        if (templateId is int t)
+        {
+            Nav.NavigateTo($"dokumente/neu/{t}");
+        }
+    }
+
+    private void Open(int id) => Nav.NavigateTo($"dokumente/{id}");
+
+    private async Task Delete(DocumentService.DocumentRow d)
+    {
+        var confirmed = await Dialogs.Confirm($"Dokument \"{d.Heading}\" wirklich löschen?", "Löschen bestätigen",
+            new ConfirmOptions { OkButtonText = "Löschen", CancelButtonText = "Abbrechen" });
+        if (confirmed != true) return;
+
+        var error = await DocumentService.DeleteAsync(d.Id);
+        if (error is not null)
+        {
+            Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Warning, Summary = "Hinweis", Detail = error, Duration = 5000 });
+            return;
+        }
+        await Reload();
+    }
+}

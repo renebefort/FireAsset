@@ -25,6 +25,10 @@ public class AppDbContext : DbContext
     public DbSet<InspectionProtocol> InspectionProtocols => Set<InspectionProtocol>();
     public DbSet<ProtocolFieldValue> ProtocolFieldValues => Set<ProtocolFieldValue>();
     public DbSet<ProtocolFieldAttachment> ProtocolFieldAttachments => Set<ProtocolFieldAttachment>();
+    public DbSet<DocumentTemplate> DocumentTemplates => Set<DocumentTemplate>();
+    public DbSet<Document> Documents => Set<Document>();
+    public DbSet<DocumentArticle> DocumentArticles => Set<DocumentArticle>();
+    public DbSet<ArticleLogEntry> ArticleLogEntries => Set<ArticleLogEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -246,6 +250,99 @@ public class AppDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(a => a.FormFieldId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<DocumentTemplate>(e =>
+        {
+            e.Property(t => t.Name).HasMaxLength(200).IsRequired();
+            e.Property(t => t.Type).HasConversion<int>();
+            e.Property(t => t.TitleDefault).HasMaxLength(300);
+            e.Property(t => t.RecipientDefault).HasMaxLength(1000);
+            e.Property(t => t.SenderDefault).HasMaxLength(1000);
+            e.Property(t => t.SubjectDefault).HasMaxLength(500);
+            e.Property(t => t.BodyDefault).HasMaxLength(8000);
+            e.Property(t => t.SignatureDefault).HasMaxLength(1000);
+            e.Property(t => t.Version).IsConcurrencyToken();
+            e.HasIndex(t => t.Name).IsUnique();
+            e.HasOne(t => t.DefaultTargetLocation)
+                .WithMany()
+                .HasForeignKey(t => t.DefaultTargetLocationId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<Document>(e =>
+        {
+            e.Property(d => d.Type).HasConversion<int>();
+            e.Property(d => d.Status).HasConversion<int>();
+            e.Property(d => d.UsageKind).HasConversion<int>();
+            e.Property(d => d.Title).HasMaxLength(300);
+            e.Property(d => d.Recipient).HasMaxLength(1000);
+            e.Property(d => d.Sender).HasMaxLength(1000);
+            e.Property(d => d.Subject).HasMaxLength(500);
+            e.Property(d => d.Body).HasMaxLength(8000);
+            e.Property(d => d.Signature).HasMaxLength(1000);
+            e.Property(d => d.UsagePurpose).HasMaxLength(500);
+            e.Property(d => d.Remarks).HasMaxLength(4000);
+            e.Property(d => d.Version).IsConcurrencyToken();
+            // Vorlage darf gelöscht werden, ohne das Dokument zu beeinflussen (nur informativer Verweis).
+            e.HasOne(d => d.Template)
+                .WithMany()
+                .HasForeignKey(d => d.TemplateId)
+                .OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(d => d.TargetLocation)
+                .WithMany()
+                .HasForeignKey(d => d.TargetLocationId)
+                .OnDelete(DeleteBehavior.SetNull);
+            // ClientSetNull: drei FKs auf Users (Created/Modified/Completed) – mehrere DB-seitige
+            // SET-NULL-Pfade zur selben Tabelle lehnt SQL Server ab ("multiple cascade paths").
+            e.HasOne(d => d.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(d => d.CreatedByUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+            e.HasOne(d => d.ModifiedByUser)
+                .WithMany()
+                .HasForeignKey(d => d.ModifiedByUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+            e.HasOne(d => d.CompletedByUser)
+                .WithMany()
+                .HasForeignKey(d => d.CompletedByUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+            e.HasIndex(d => new { d.Type, d.Status });
+        });
+
+        modelBuilder.Entity<DocumentArticle>(e =>
+        {
+            e.Property(a => a.BarcodeSnapshot).HasMaxLength(100).IsRequired();
+            e.Property(a => a.IdentificationSnapshot).HasMaxLength(300).IsRequired();
+            e.Property(a => a.CategoryNameSnapshot).HasMaxLength(200).IsRequired();
+            e.HasOne(a => a.Document)
+                .WithMany(d => d.Articles)
+                .HasForeignKey(a => a.DocumentId)
+                .OnDelete(DeleteBehavior.Cascade);
+            // Artikel-Löschung hebt nur den Verweis auf; die Snapshot-Werte bleiben lesbar.
+            e.HasOne(a => a.Article)
+                .WithMany()
+                .HasForeignKey(a => a.ArticleId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<ArticleLogEntry>(e =>
+        {
+            e.Property(l => l.Action).HasConversion<int>();
+            e.Property(l => l.ArticleIdentificationSnapshot).HasMaxLength(300).IsRequired();
+            e.Property(l => l.Details).HasMaxLength(1000);
+            e.Property(l => l.UserNameSnapshot).HasMaxLength(201);
+            e.HasIndex(l => l.Timestamp);
+            // Logbuch folgt dem Artikel: wird er (nur Testdaten) gelöscht, verschwindet auch sein Log.
+            e.HasOne(l => l.Article)
+                .WithMany()
+                .HasForeignKey(l => l.ArticleId)
+                .OnDelete(DeleteBehavior.Cascade);
+            // Benutzer-Löschung hebt nur den Verweis auf; der Name bleibt als Snapshot erhalten.
+            e.HasOne(l => l.User)
+                .WithMany()
+                .HasForeignKey(l => l.UserId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }

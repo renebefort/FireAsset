@@ -30,10 +30,15 @@
             <RadzenPanelMenuItem Text="Schnellaktionen" Icon="bolt" Expanded="true">
                 <RadzenPanelMenuItem Text="Prüfung starten" Icon="qr_code_scanner" Path="schnell/pruefung" />
                 <RadzenPanelMenuItem Text="Standortwechsel" Icon="swap_horiz" Path="schnell/standortwechsel" />
+                <RadzenPanelMenuItem Text="Neues Dokument" Icon="post_add" Path="schnell/dokument" />
             </RadzenPanelMenuItem>
             <RadzenPanelMenuItem Text="Artikelstamm" Icon="inventory_2" Path="artikel" />
             <RadzenPanelMenuItem Text="Aufgaben" Icon="task_alt" Path="aufgaben" />
             <RadzenPanelMenuItem Text="Protokolle" Icon="fact_check" Path="protokolle" />
+            <RadzenPanelMenuItem Text="Dokumente" Icon="mail" Path="dokumente" />
+            <AuthorizeView Roles="Administrator">
+                <RadzenPanelMenuItem Text="Logbuch" Icon="history_edu" Path="logbuch" />
+            </AuthorizeView>
             <RadzenPanelMenuItem Text="Export" Icon="file_download" Path="export" />
             <RadzenPanelMenuItem Text="Stammdaten" Icon="settings">
                 <AuthorizeView Roles="Administrator">
@@ -41,10 +46,14 @@
                 </AuthorizeView>
                 <RadzenPanelMenuItem Text="Standorte" Icon="place" Path="stammdaten/standorte" />
                 <RadzenPanelMenuItem Text="Formulare" Icon="description" Path="stammdaten/formulare" />
+                <RadzenPanelMenuItem Text="Dokumentvorlagen" Icon="drafts" Path="stammdaten/dokumentvorlagen" />
                 <RadzenPanelMenuItem Text="Kategorien & Intervalle" Icon="category" Path="stammdaten/kategorien" />
             </RadzenPanelMenuItem>
-            <RadzenPanelMenuItem Text="Handbuch" Icon="menu_book" Path="handbuch" />
-            <RadzenPanelMenuItem Text="Changelog" Icon="history" Path="changelog" />
+            <RadzenPanelMenuItem Text="Informationen" Icon="info">
+                <RadzenPanelMenuItem Text="Handbuch" Icon="menu_book" Path="handbuch" />
+                <RadzenPanelMenuItem Text="Changelog" Icon="history" Path="changelog" />
+                <RadzenPanelMenuItem Text="Über FireAsset" Icon="local_fire_department" Path="ueber" />
+            </RadzenPanelMenuItem>
         </RadzenPanelMenu>
     </RadzenSidebar>
 

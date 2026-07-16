@@ -149,7 +149,7 @@
                 new ConfirmOptions { OkButtonText = "Ja, Folgeaufgabe anlegen", CancelButtonText = "Nein" }) == true;
         }
 
-        var (error, info) = await TaskService.DecommissionAsync(item.TaskId, createFollowUp);
+        var (error, info) = await TaskService.DecommissionAsync(item.TaskId, createFollowUp, _userId);
         if (error is not null)
         {
             Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Warning, Summary = "Hinweis", Detail = error, Duration = 5000 });

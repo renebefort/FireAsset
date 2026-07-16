@@ -4,6 +4,7 @@ using FireAsset.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FireAsset.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260715220237_AddDocuments")]
+    partial class AddDocuments
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -131,50 +134,6 @@ namespace FireAsset.Data.Migrations
                     b.HasIndex("ModifiedByUserId");
 
                     b.ToTable("Articles");
-                });
-
-            modelBuilder.Entity("FireAsset.Data.Entities.ArticleLogEntry", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("Action")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ArticleId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ArticleIdentificationSnapshot")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<string>("Details")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<DateTime>("Timestamp")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("UserId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("UserNameSnapshot")
-                        .HasMaxLength(201)
-                        .HasColumnType("nvarchar(201)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ArticleId");
-
-                    b.HasIndex("Timestamp");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("ArticleLogEntries");
                 });
 
             modelBuilder.Entity("FireAsset.Data.Entities.ArticlePhoto", b =>
@@ -884,24 +843,6 @@ namespace FireAsset.Data.Migrations
                     b.Navigation("Location");
 
                     b.Navigation("ModifiedByUser");
-                });
-
-            modelBuilder.Entity("FireAsset.Data.Entities.ArticleLogEntry", b =>
-                {
-                    b.HasOne("FireAsset.Data.Entities.Article", "Article")
-                        .WithMany()
-                        .HasForeignKey("ArticleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("FireAsset.Data.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Article");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("FireAsset.Data.Entities.ArticlePhoto", b =>

@@ -1,0 +1,78 @@
+@page "/stammdaten/dokumentvorlagen"
+@attribute [Authorize]
+@using FireAsset.Data.Entities
+@inject DocumentTemplateService TemplateService
+@inject NotificationService Notifications
+@inject AdaptiveDialogService Dialogs
+
+<PageTitle>Dokumentvorlagen · Asset Manager</PageTitle>
+
+<RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center" class="rz-mb-3">
+    <RadzenText TextStyle="TextStyle.H4" class="rz-my-0">Dokumentvorlagen</RadzenText>
+    <RadzenButton Icon="add" Text="Neue Vorlage" ButtonStyle="ButtonStyle.Primary" Click="() => OpenEditor(null)" />
+</RadzenStack>
+
+<RadzenDataGrid Data="@_templates" TItem="DocumentTemplate" AllowSorting="true"
+                AllowFiltering="true" FilterMode="FilterMode.CheckBoxList" GridLines="DataGridGridLines.Both"
+                AllowColumnResize="true" AllowPaging="true" PageSize="20" PageSizeOptions="@(new int[] { 10, 20, 50, 100 })" ShowPagingSummary="true">
+    <Columns>
+        <RadzenDataGridColumn TItem="DocumentTemplate" Property="Name" Title="Name" />
+        <RadzenDataGridColumn TItem="DocumentTemplate" Property="Type" Title="Typ" Width="200px">
+            <Template Context="t">@TypeLabel(t.Type)</Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="DocumentTemplate" Title="Standard-Zielstandort" Sortable="false" Filterable="false">
+            <Template Context="t">@(t.DefaultTargetLocation?.Name ?? "—")</Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="DocumentTemplate" Property="IsActive" Title="Aktiv" Width="90px" TextAlign="TextAlign.Center">
+            <Template Context="t">
+                <RadzenBadge Text="@(t.IsActive ? "aktiv" : "inaktiv")" BadgeStyle="@(t.IsActive ? BadgeStyle.Success : BadgeStyle.Light)" />
+            </Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="DocumentTemplate" Context="t" Title="Aktionen" Sortable="false" Filterable="false" Width="150px" TextAlign="TextAlign.Center">
+            <Template Context="t">
+                <RadzenButton Icon="edit" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="() => OpenEditor(t.Id)" title="Bearbeiten" />
+                <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small" Click="() => Delete(t)" title="Löschen" />
+            </Template>
+        </RadzenDataGridColumn>
+    </Columns>
+</RadzenDataGrid>
+
+@code {
+    private List<DocumentTemplate> _templates = new();
+
+    protected override async Task OnInitializedAsync() => await Reload();
+
+    private async Task Reload() => _templates = await TemplateService.GetAllAsync();
+
+    private static string TypeLabel(DocumentType type) =>
+        type == DocumentType.Verwendungsnachweis ? "Verwendungsnachweis" : "Freier Brief";
+
+    private async Task OpenEditor(int? templateId)
+    {
+        var result = await Dialogs.OpenAsync<DocumentTemplateEditDialog>(
+            templateId is null ? "Neue Vorlage" : "Vorlage bearbeiten",
+            new Dictionary<string, object?> { ["TemplateId"] = templateId },
+            new DialogOptions { Width = "760px", Height = "80%", Resizable = true, Draggable = true });
+
+        if (result is true)
+        {
+            await Reload();
+            Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = "Gespeichert", Detail = "Vorlage gespeichert.", Duration = 3000 });
+        }
+    }
+
+    private async Task Delete(DocumentTemplate t)
+    {
+        var confirmed = await Dialogs.Confirm($"Vorlage \"{t.Name}\" wirklich löschen?", "Löschen bestätigen",
+            new ConfirmOptions { OkButtonText = "Löschen", CancelButtonText = "Abbrechen" });
+        if (confirmed != true) return;
+
+        var error = await TemplateService.DeleteAsync(t.Id);
+        if (error is not null)
+        {
+            Notifications.Notify(new NotificationMessage { Severity = NotificationSeverity.Warning, Summary = "Hinweis", Detail = error, Duration = 5000 });
+            return;
+        }
+        await Reload();
+    }
+}

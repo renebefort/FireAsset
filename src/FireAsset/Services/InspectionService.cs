@@ -134,7 +134,7 @@ public class InspectionService
         // FTZ-Pool-Gerät: keine Folgeaufgabe – stattdessen ggf. Artikel stilllegen, wenn dies die letzte
         // offene Aufgabe war. Sonst regulärer wiederkehrender Zyklus mit Folgeaufgabe.
         var followUpInfo = task.Article.IsPoolDevice
-            ? await _taskGeneration.FinalizePoolDeviceAsync(db, task.Article, completedDate)
+            ? await _taskGeneration.FinalizePoolDeviceAsync(db, task.Article, completedDate, userId)
             : _taskGeneration.AddFollowUpTask(db, task, completedDate);
 
         try
