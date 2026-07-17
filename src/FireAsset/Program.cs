@@ -61,6 +61,15 @@ builder.Services.AddScoped<AdaptiveDialogService>();
 builder.Services.AddScoped<ProtocolPdfExportService>();
 PdfSharp.Fonts.GlobalFontSettings.UseWindowsFontsUnderWindows = true;
 
+// Ob HTTPS erzwungen wird: steuert das Secure-Flag des Auth-Cookies UND die HTTPS-Weiterleitung.
+// Standard: außerhalb der Entwicklung an (Produktivbetrieb sollte HTTPS nutzen). Für einen reinen
+// HTTP-Betrieb in einem vertrauenswürdigen internen Netz kann dies über "Security:RequireHttps": false
+// (in appsettings.json oder der externen, im Betrieb editierbaren dbsettings.json) abgeschaltet werden.
+// Andernfalls würde der Browser das Secure-Cookie bei HTTP-Zugriff über eine IP-Adresse verwerfen
+// (localhost ist ein Sonderfall und funktioniert auch über HTTP) – die Anmeldung schlägt dann fehl.
+var requireHttps = builder.Configuration.GetValue<bool?>("Security:RequireHttps")
+    ?? !builder.Environment.IsDevelopment();
+
 // Authentifizierung: schlanke Cookie-Auth.
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -73,9 +82,9 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.Cookie.Name = "FireAsset.Auth";
         options.Cookie.HttpOnly = true;
         options.Cookie.SameSite = SameSiteMode.Lax;
-        options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
-            ? CookieSecurePolicy.SameAsRequest
-            : CookieSecurePolicy.Always;
+        options.Cookie.SecurePolicy = requireHttps
+            ? CookieSecurePolicy.Always
+            : CookieSecurePolicy.SameAsRequest;
         options.Events = new CookieAuthenticationEvents
         {
             // Cookie-Revalidierung: gelöschte oder deaktivierte Benutzer verlieren ihre
@@ -109,7 +118,13 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
-app.UseHttpsRedirection();
+
+// HTTPS-Weiterleitung nur, wenn HTTPS erzwungen wird (siehe requireHttps oben). Im reinen
+// HTTP-Betrieb entfällt sie, um wiederholte Warnungen ohne konfigurierten HTTPS-Port zu vermeiden.
+if (requireHttps)
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseAuthentication();
 app.UseAuthorization();

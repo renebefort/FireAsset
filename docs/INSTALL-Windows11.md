@@ -171,6 +171,30 @@ Zugriff gibt es zwei übliche Wege:
 
 Ohne Zertifikat ist der Betrieb nur innerhalb eines vertrauenswürdigen internen Netzes über `http` vertretbar.
 
+### Reiner HTTP-Betrieb im internen Netz
+
+Standardmäßig erzwingt die App außerhalb der Entwicklung HTTPS: Das Anmelde-Cookie wird als
+`Secure` markiert und daher **nur über HTTPS** gespeichert. Beim Zugriff über `http://<IP>:<Port>`
+verwirft der Browser dieses Cookie – die Anmeldung scheint dann fehlzuschlagen (der Login gelingt,
+aber man landet sofort wieder auf der Login-Seite). Der Zugriff über `http://localhost` ist ein
+Sonderfall und funktioniert weiterhin.
+
+Für einen bewussten HTTP-only-Betrieb im vertrauenswürdigen internen Netz lässt sich die
+HTTPS-Erzwingung abschalten – in `appsettings.json` (oder in der externen `dbsettings.json`):
+
+```json
+{
+  "Security": {
+    "RequireHttps": false
+  }
+}
+```
+
+Damit wird das Cookie auch über HTTP akzeptiert und die HTTPS-Weiterleitung entfällt. Die
+freundliche Fehlerseite und HSTS bleiben davon unberührt (anders als beim Umschalten auf die
+Umgebung `Development`, das zusätzlich Stacktraces im Browser anzeigen würde). Für den echten
+Produktivbetrieb wird dennoch HTTPS empfohlen (`"RequireHttps": true`, Standard).
+
 ---
 
 ## 10. Datensicherung (Backup)
@@ -209,6 +233,7 @@ Die `dbsettings.json` und ggf. gesetzte Umgebungsvariablen sollten zusätzlich d
 | „CREATE DATABASE permission denied" | Login fehlt die Rolle `dbcreator` – zuweisen oder DB vorab anlegen. |
 | Andere Rechner erreichen die App nicht | `ASPNETCORE_URLS` auf `0.0.0.0:<Port>` gesetzt? Firewall-Regel vorhanden (Abschnitt 7)? |
 | Admin-Login funktioniert nicht | Der Admin wird nur angelegt, wenn die DB **keinen** Benutzer enthält. Bei bereits vorhandener DB das Passwort in *Stammdaten → Benutzer* zurücksetzen (mit einem anderen Admin) oder die `AdminSeed`-Werte greifen nur bei leerer Benutzertabelle. |
+| Anmeldung klappt über `localhost`, aber nicht über die IP-Adresse | HTTPS wird erzwungen, das Secure-Cookie wird bei HTTP-Zugriff über die IP verworfen. Für HTTP-Betrieb `"Security": { "RequireHttps": false }` setzen (siehe Abschnitt 9) **oder** HTTPS bereitstellen. |
 
 ---
 
